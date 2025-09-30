@@ -1,0 +1,97 @@
+# Translation Template for Estimate Calculator
+# Copyright (C) 2025 Your Name
+# This file is distributed under the same license as the Estimate Calculator plugin.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Estimate Calculator 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-09-22 12:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Custom Post Type Labels
+msgctxt "Post type general name"
+msgid "Calculators"
+msgstr ""
+
+msgctxt "Post type singular name"
+msgid "Calculator"
+msgstr ""
+
+msgctxt "Admin Menu text"
+msgid "Calculators"
+msgstr ""
+
+msgctxt "Add New on Toolbar"
+msgid "Calculator"
+msgstr ""
+
+msgid "Add New"
+msgstr ""
+
+msgid "Add New Calculator"
+msgstr ""
+
+msgid "New Calculator"
+msgstr ""
+
+msgid "Edit Calculator"
+msgstr ""
+
+msgid "View Calculator"
+msgstr ""
+
+msgid "All Calculators"
+msgstr ""
+
+msgid "Search Calculators"
+msgstr ""
+
+msgid "Parent Calculators:"
+msgstr ""
+
+msgid "No calculators found."
+msgstr ""
+
+msgid "No calculators found in Trash."
+msgstr ""
+
+msgid "Calculator posts for estimate calculations."
+msgstr ""
+
+#: estimate-calculator.php:85
+#, php-format
+msgid "Calculator with slug \"%s\" not found"
+msgstr ""
+
+#: estimate-calculator.php:94
+msgid "Custom field \"questions\" not found or empty"
+msgstr ""
+
+#: estimate-calculator.php:140
+#, php-format
+msgid "Calculator with slug \"%s\" not found"
+msgstr ""
+
+#: estimate-calculator.php:149
+msgid "Custom field \"questions\" not found or empty"
+msgstr ""
+
+#: estimate-calculator.php:168
+msgid "Estimate Calculator plugin requires Advanced Custom Fields (ACF) plugin to be installed and activated."
+msgstr ""
+
+#: estimate-calculator.php:183
+msgid "Estimate Calculator plugin requires Advanced Custom Fields (ACF) plugin to be installed and activated."
+msgstr ""
+
+#: estimate-calculator.php:184
+msgid "Plugin Activation Error"
+msgstr ""
