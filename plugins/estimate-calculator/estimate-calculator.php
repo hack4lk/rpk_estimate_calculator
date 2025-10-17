@@ -63,6 +63,71 @@ class EstimateCalculator {
     }
     
     /**
+     * Get React application asset URLs
+     */
+    private function get_react_assets() {
+        $build_path = ESTIMATE_CALCULATOR_PLUGIN_DIR . 'app/build/';
+        $build_url = ESTIMATE_CALCULATOR_PLUGIN_URL . 'app/build/';
+        
+        $assets = array(
+            'css' => array(),
+            'js' => array()
+        );
+        
+        // Always include WordPress integration script first
+        $integration_script = $build_path . 'wordpress-integration.js';
+        if (file_exists($integration_script)) {
+            $assets['js'][] = $build_url . 'wordpress-integration.js';
+        }
+        
+        // Check for asset-manifest.json to get the correct file names
+        $manifest_file = $build_path . 'asset-manifest.json';
+        
+        if (file_exists($manifest_file)) {
+            $manifest = json_decode(file_get_contents($manifest_file), true);
+            
+            if ($manifest && isset($manifest['files'])) {
+                // Get main CSS file
+                if (isset($manifest['files']['main.css'])) {
+                    $assets['css'][] = $build_url . ltrim($manifest['files']['main.css'], '/');
+                }
+                
+                // Get runtime JS file if it exists (Create React App chunk) - should load before main
+                if (isset($manifest['files']['runtime-main.js'])) {
+                    $assets['js'][] = $build_url . ltrim($manifest['files']['runtime-main.js'], '/');
+                }
+                
+                // Get vendor chunks if they exist - should load before main
+                foreach ($manifest['files'] as $key => $file) {
+                    if (strpos($key, 'chunk.js') !== false && strpos($key, 'runtime') === false) {
+                        $assets['js'][] = $build_url . ltrim($file, '/');
+                    }
+                }
+                
+                // Get main JS file - should load last
+                if (isset($manifest['files']['main.js'])) {
+                    $assets['js'][] = $build_url . ltrim($manifest['files']['main.js'], '/');
+                }
+            }
+        } else {
+            // Fallback to static file names if manifest doesn't exist
+            $css_files = glob($build_path . 'static/css/main.*.css');
+            if (!empty($css_files)) {
+                $css_file = $css_files[0];
+                $assets['css'][] = str_replace($build_path, $build_url, $css_file);
+            }
+            
+            $js_files = glob($build_path . 'static/js/main.*.js');
+            if (!empty($js_files)) {
+                $js_file = $js_files[0];
+                $assets['js'][] = str_replace($build_path, $build_url, $js_file);
+            }
+        }
+        
+        return $assets;
+    }
+    
+    /**
      * Register calculator custom post type
      */
     public function register_calculator_post_type() {
@@ -162,20 +227,6 @@ class EstimateCalculator {
             ),
         ));
         
-        // Debug endpoint to help troubleshoot form fields
-        register_rest_route('estimate-calculator/v1', '/debug-form-fields', array(
-            'methods' => 'GET',
-            'callback' => array($this, 'debug_form_fields'),
-            'permission_callback' => '__return_true',
-            'args' => array(
-                'slug' => array(
-                    'default' => $default_slug,
-                    'sanitize_callback' => 'sanitize_text_field',
-                    'validate_callback' => array($this, 'validate_slug'),
-                ),
-            ),
-        ));
-        
         // SendGrid email endpoint
         register_rest_route('estimate-calculator/v1', '/send-email', array(
             'methods' => 'POST',
@@ -219,6 +270,35 @@ class EstimateCalculator {
                     'validate_callback' => array($this, 'validate_required_string'),
                 ),
                 'phone' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => array($this, 'validate_required_string'),
+                ),
+            ),
+        ));
+        
+        // JobTread account and contact creation endpoint (new enhanced version)
+        register_rest_route('estimate-calculator/v1', '/create-jobtread-account-contact', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'create_jobtread_account_contact'),
+            'permission_callback' => '__return_true',
+            'args' => array(
+                'name' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => array($this, 'validate_required_string'),
+                ),
+                'email' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_email',
+                    'validate_callback' => array($this, 'validate_required_email'),
+                ),
+                'phone' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => array($this, 'validate_required_string'),
+                ),
+                'zip' => array(
                     'required' => true,
                     'sanitize_callback' => 'sanitize_text_field',
                     'validate_callback' => array($this, 'validate_required_string'),
@@ -381,49 +461,6 @@ class EstimateCalculator {
             'success' => true,
             'form_fields' => $form_fields,
             'questions' => $questions,
-        );
-    }
-    
-    /**
-     * Debug endpoint to troubleshoot form fields
-     */
-    public function debug_form_fields(WP_REST_Request $request) {
-        $slug = $request->get_param('slug');
-        
-        // Get calculator post by slug
-        $calculator_post = $this->get_calculator_post_by_slug($slug);
-        
-        if (!$calculator_post) {
-            return new WP_Error(
-                'calculator_not_found', 
-                sprintf(__('Calculator with slug "%s" not found', 'estimate-calculator'), $slug), 
-                array('status' => 404)
-            );
-        }
-        
-        // Get raw questions data
-        $questions = get_field('questions', $calculator_post->ID);
-        
-        // Get all ACF fields for this post
-        $all_fields = get_fields($calculator_post->ID);
-        
-        // Get form fields using the new method
-        $form_fields = $this->get_form_fields($calculator_post->ID);
-        
-        return array(
-            'success' => true,
-            'debug_info' => array(
-                'post_id' => $calculator_post->ID,
-                'post_title' => $calculator_post->post_title,
-                'raw_questions' => $questions,
-                'form_fields' => $form_fields,
-                'all_acf_fields' => $all_fields,
-                'acf_active' => function_exists('get_field'),
-                'new_structure' => array(
-                    'form_fields' => $form_fields,
-                    'questions' => $questions,
-                ),
-            ),
         );
     }
     
@@ -668,6 +705,201 @@ class EstimateCalculator {
     }
     
     /**
+     * Create JobTread account and contact (enhanced version)
+     */
+    public function create_jobtread_account_contact(WP_REST_Request $request) {
+        // Get JobTread API settings from plugin settings
+        $options = get_option('estimate_calculator_settings');
+        $api_key = isset($options['jobtread_api_key']) ? $options['jobtread_api_key'] : '';
+        $pave_api_url = 'https://api.jobtread.com/pave'; // Fixed URL for the new JobTread API
+        $organization_id = isset($options['jobtread_organization_id']) ? $options['jobtread_organization_id'] : '';
+        
+        if (empty($api_key)) {
+            return new WP_Error(
+                'missing_jobtread_api_key',
+                __('JobTread API key is not configured. Please set it in the plugin settings.', 'estimate-calculator'),
+                array('status' => 500)
+            );
+        }
+        
+        if (empty($organization_id)) {
+            return new WP_Error(
+                'missing_jobtread_organization_id',
+                __('JobTread Organization ID is not configured. Please set it in the plugin settings.', 'estimate-calculator'),
+                array('status' => 500)
+            );
+        }
+        
+        // Get the customer data from the request
+        $name = $request->get_param('name');
+        $email = $request->get_param('email');
+        $phone = $request->get_param('phone');
+        $zip = $request->get_param('zip');
+        
+        // Step 1: Create Account
+        $account_payload = array(
+            'query' => array(
+                'createAccount' => array(
+                    '$' => array(
+                        'organizationId' => $organization_id,
+                        'name' => $name,
+                        'type' => 'customer',
+                        'customFieldValues' => array(
+                            'Project Estimator' => 'Unassigned',
+                            'Project Manager' => 'Unassigned'
+                        )
+                    ),
+                    'createdAccount' => array(
+                        'id' => (object) array(),
+                        'name' => (object) array(),
+                        'createdAt' => (object) array(),
+                        'type' => (object) array(),
+                        'organization' => array(
+                            'id' => (object) array(),
+                            'name' => (object) array()
+                        )
+                    )
+                )
+            )
+        );
+        
+        // Send account creation request
+        $account_result = $this->send_jobtread_pave_request($api_key, $pave_api_url, $account_payload);
+        
+        if (is_wp_error($account_result)) {
+            return $account_result;
+        }
+        
+        // Extract account ID from response
+        $account_id = null;
+        if (isset($account_result['response']['createAccount']['createdAccount']['id'])) {
+            $account_id = $account_result['response']['createAccount']['createdAccount']['id'];
+        }
+        
+        if (empty($account_id)) {
+            return new WP_Error(
+                'jobtread_account_creation_failed',
+                __('Failed to extract account ID from JobTread response', 'estimate-calculator'),
+                array('status' => 500)
+            );
+        }
+        
+        // Step 2: Create Contact
+        $contact_payload = array(
+            'query' => array(
+                'createContact' => array(
+                    '$' => array(
+                        'accountId' => $account_id,
+                        'name' => $name,
+                        'customFieldValues' => array(
+                            'Email' => $email,
+                            'Phone' => $phone,
+                            'Zip' => $zip
+                        )
+                    ),
+                    'createdAccount' => array(
+                        'id' => (object) array(),
+                        'name' => (object) array(),
+                        'createdAt' => (object) array(),
+                        'type' => (object) array(),
+                        'organization' => array(
+                            'id' => (object) array(),
+                            'name' => (object) array()
+                        )
+                    )
+                )
+            )
+        );
+        
+        // Send contact creation request
+        $contact_result = $this->send_jobtread_pave_request($api_key, $pave_api_url, $contact_payload);
+        
+        if (is_wp_error($contact_result)) {
+            // If contact creation fails, we still return success for account creation
+            // but include the contact error in the response
+            return array(
+                'success' => true,
+                'message' => __('JobTread account created successfully, but contact creation failed', 'estimate-calculator'),
+                'account_id' => $account_id,
+                'customer_data' => array(
+                    'name' => $name,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'zip' => $zip
+                ),
+                'account_response' => $account_result,
+                'contact_error' => $contact_result->get_error_message()
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'message' => __('JobTread account and contact created successfully', 'estimate-calculator'),
+            'account_id' => $account_id,
+            'customer_data' => array(
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+                'zip' => $zip
+            ),
+            'account_response' => $account_result,
+            'contact_response' => $contact_result,
+        );
+    }
+    
+    /**
+     * Send request to JobTread Pave API
+     */
+    private function send_jobtread_pave_request($api_key, $api_url, $payload) {
+        $headers = array(
+            'Authorization: ' . $api_key,
+            'Content-Type: application/json',
+            'Accept: application/json',
+        );
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $api_url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, wp_json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+        
+        // Check for cURL errors
+        if (!empty($curl_error)) {
+            return new WP_Error(
+                'curl_error',
+                sprintf(__('cURL error: %s', 'estimate-calculator'), $curl_error),
+                array('status' => 500)
+            );
+        }
+        
+        // Check HTTP response code
+        if ($http_code >= 200 && $http_code < 300) {
+            // Success
+            $decoded_response = json_decode($response, true);
+            return array(
+                'http_code' => $http_code,
+                'response' => $decoded_response ? $decoded_response : $response,
+            );
+        } else {
+            // Error
+            $error_message = $response ? $response : sprintf(__('HTTP Error %d', 'estimate-calculator'), $http_code);
+            return new WP_Error(
+                'jobtread_pave_error',
+                sprintf(__('JobTread Pave API error (HTTP %d): %s', 'estimate-calculator'), $http_code, $error_message),
+                array('status' => $http_code)
+            );
+        }
+    }
+    
+    /**
      * Validate required string parameter
      */
     public function validate_required_string($param, $request, $key) {
@@ -869,6 +1101,14 @@ class EstimateCalculator {
             'estimate-calculator-settings',
             'estimate_calculator_general'
         );
+        
+        add_settings_field(
+            'jobtread_organization_id',
+            __('JobTread Organization ID', 'estimate-calculator'),
+            array($this, 'jobtread_organization_id_field'),
+            'estimate-calculator-settings',
+            'estimate_calculator_general'
+        );
     }
     
     /**
@@ -899,7 +1139,8 @@ class EstimateCalculator {
                     <li><code>/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-results</code> - <?php _e('Get results page data (special handling for calculator-results slug)', 'estimate-calculator'); ?></li>
                     <li><code>/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-email</code> - <?php _e('Get email template data (special handling for calculator-email slug)', 'estimate-calculator'); ?></li>
                     <li><strong>POST:</strong> <code>/wp-json/estimate-calculator/v1/send-email</code> - <?php _e('Send email via SendGrid API', 'estimate-calculator'); ?></li>
-                    <li><strong>POST:</strong> <code>/wp-json/estimate-calculator/v1/create-jobtread-customer</code> - <?php _e('Create customer in JobTread', 'estimate-calculator'); ?></li>
+                    <li><strong>POST:</strong> <code>/wp-json/estimate-calculator/v1/create-jobtread-customer</code> - <?php _e('Create customer in JobTread (legacy)', 'estimate-calculator'); ?></li>
+                    <li><strong>POST:</strong> <code>/wp-json/estimate-calculator/v1/create-jobtread-account-contact</code> - <?php _e('Create account and contact in JobTread (enhanced)', 'estimate-calculator'); ?></li>
                 </ul>
                 <li><strong><?php _e('Shortcode:', 'estimate-calculator'); ?></strong> <code>[estimate_calculator slug="your-calculator-slug"]</code></li>
                 <li><strong><?php _e('Default shortcode:', 'estimate-calculator'); ?></strong> <code>[estimate_calculator]</code> <?php _e('(uses the default slug above)', 'estimate-calculator'); ?></li>
@@ -937,11 +1178,18 @@ class EstimateCalculator {
             </ul>
             
             <h3><?php _e('JobTread Customer API', 'estimate-calculator'); ?></h3>
-            <p><?php _e('Create customers in JobTread using the POST endpoint:', 'estimate-calculator'); ?></p>
+            <p><?php _e('Create customers in JobTread using the POST endpoints:', 'estimate-calculator'); ?></p>
             <ul>
-                <li><strong>Endpoint:</strong> <code>POST /wp-json/estimate-calculator/v1/create-jobtread-customer</code></li>
+                <li><strong>Legacy Endpoint:</strong> <code>POST /wp-json/estimate-calculator/v1/create-jobtread-customer</code></li>
                 <li><strong>Required:</strong> <?php _e('JobTread API key and URL must be configured in settings above', 'estimate-calculator'); ?></li>
                 <li><strong>Payload:</strong> <?php _e('Customer data with name, email, zip, and phone fields', 'estimate-calculator'); ?></li>
+            </ul>
+            <ul>
+                <li><strong>Enhanced Endpoint:</strong> <code>POST /wp-json/estimate-calculator/v1/create-jobtread-account-contact</code></li>
+                <li><strong>Required:</strong> <?php _e('JobTread API key and Organization ID must be configured in settings above', 'estimate-calculator'); ?></li>
+                <li><strong>Payload:</strong> <?php _e('Customer data with name, email, phone, and zip fields', 'estimate-calculator'); ?></li>
+                <li><strong>Functionality:</strong> <?php _e('Creates both a JobTread account and contact in a two-step process', 'estimate-calculator'); ?></li>
+                <li><strong>API:</strong> <?php _e('Uses JobTread Pave API (https://api.jobtread.com/pave)', 'estimate-calculator'); ?></li>
             </ul>
             
             <h3><?php _e('ACF Field Setup', 'estimate-calculator'); ?></h3>
@@ -1030,68 +1278,260 @@ class EstimateCalculator {
     }
     
     /**
+     * JobTread Organization ID field
+     */
+    public function jobtread_organization_id_field() {
+        $options = get_option('estimate_calculator_settings');
+        $value = isset($options['jobtread_organization_id']) ? $options['jobtread_organization_id'] : '';
+        ?>
+        <input type="text" name="estimate_calculator_settings[jobtread_organization_id]" value="<?php echo esc_attr($value); ?>" class="regular-text" placeholder="22NBiqWKxCzr" />
+        <p class="description">
+            <?php _e('Enter your JobTread Organization ID for creating accounts and contacts (e.g., 22NBiqWKxCzr).', 'estimate-calculator'); ?>
+        </p>
+        <?php
+    }
+    
+    /**
      * Calculator shortcode
      */
     public function calculator_shortcode($atts) {
         $atts = shortcode_atts(array(
-            'slug' => $this->get_default_slug(),
+            'slug' => '',
             'class' => 'estimate-calculator-wrapper',
             'id' => '',
         ), $atts, 'estimate_calculator');
         
-        $calculator_post = $this->get_calculator_post_by_slug($atts['slug']);
+        // Generate unique ID for this calculator instance
+        $calculator_id = !empty($atts['id']) ? $atts['id'] : 'estimate-calculator-' . uniqid();
         
-        if (!$calculator_post) {
-            return '<div class="estimate-calculator-error">' . 
-                   sprintf(__('Calculator with slug "%s" not found.', 'estimate-calculator'), esc_html($atts['slug'])) . 
-                   '</div>';
+        // Create a sanitized version for JavaScript function names (replace hyphens and other invalid chars with underscores)
+        $js_function_id = preg_replace('/[^a-zA-Z0-9_]/', '_', $calculator_id);
+        
+        // Get React assets
+        $assets = $this->get_react_assets();
+        
+        // If no slug is provided, load the React app with home screen
+        if (empty($atts['slug'])) {
+            // Prepare minimal configuration for home screen
+            $calculator_config = array(
+                'mode' => 'home',
+                'slug' => null,
+                'calculatorId' => null,
+                'calculatorTitle' => null,
+                'calculatorSlug' => null,
+                'formFields' => array(),
+                'questions' => array(),
+                'apiEndpoints' => array(
+                    'getData' => home_url('/wp-json/estimate-calculator/v1/get-calculator-data'),
+                    'getQuestions' => home_url('/wp-json/estimate-calculator/v1/get-questions'),
+                    'getCategoryData' => home_url('/wp-json/estimate-calculator/v1/get-category-data'),
+                    'getResults' => home_url('/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-results'),
+                    'getEmail' => home_url('/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-email'),
+                    'sendEmail' => home_url('/wp-json/estimate-calculator/v1/send-email'),
+                    'createCustomer' => home_url('/wp-json/estimate-calculator/v1/create-jobtread-customer'),
+                    'createAccountContact' => home_url('/wp-json/estimate-calculator/v1/create-jobtread-account-contact'),
+                ),
+            );
+        } else {
+            // Use provided slug or default slug
+            $slug = !empty($atts['slug']) ? $atts['slug'] : $this->get_default_slug();
+            $calculator_post = $this->get_calculator_post_by_slug($slug);
+            
+            if (!$calculator_post) {
+                return '<div class="estimate-calculator-error">' . 
+                       sprintf(__('Calculator with slug "%s" not found.', 'estimate-calculator'), esc_html($slug)) . 
+                       '</div>';
+            }
+            
+            $questions = get_field('questions', $calculator_post->ID);
+            
+            if (!$questions) {
+                return '<div class="estimate-calculator-error">' . 
+                       __('No questions found for this calculator.', 'estimate-calculator') . 
+                       '</div>';
+            }
+            
+            // Get form fields
+            $form_fields = $this->get_form_fields($calculator_post->ID);
+            
+            // Prepare calculator configuration for React app
+            $calculator_config = array(
+                'mode' => 'calculator',
+                'slug' => $slug,
+                'calculatorId' => $calculator_post->ID,
+                'calculatorTitle' => $calculator_post->post_title,
+                'calculatorSlug' => $calculator_post->post_name,
+                'formFields' => $form_fields,
+                'questions' => $questions,
+                'apiEndpoints' => array(
+                    'getData' => home_url('/wp-json/estimate-calculator/v1/get-calculator-data'),
+                    'getQuestions' => home_url('/wp-json/estimate-calculator/v1/get-questions'),
+                    'getCategoryData' => home_url('/wp-json/estimate-calculator/v1/get-category-data'),
+                    'getResults' => home_url('/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-results'),
+                    'getEmail' => home_url('/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-email'),
+                    'sendEmail' => home_url('/wp-json/estimate-calculator/v1/send-email'),
+                    'createCustomer' => home_url('/wp-json/estimate-calculator/v1/create-jobtread-customer'),
+                    'createAccountContact' => home_url('/wp-json/estimate-calculator/v1/create-jobtread-account-contact'),
+                ),
+            );
         }
-        
-        $questions = get_field('questions', $calculator_post->ID);
-        
-        if (!$questions) {
-            return '<div class="estimate-calculator-error">' . 
-                   __('No questions found for this calculator.', 'estimate-calculator') . 
-                   '</div>';
-        }
-        
-        // Get form fields
-        $form_fields = $this->get_form_fields($calculator_post->ID);
-        
-        // Combine data for JavaScript
-        $calculator_data = array(
-            'form_fields' => $form_fields,
-            'questions' => $questions,
-        );
-        
-        $id_attr = !empty($atts['id']) ? ' id="' . esc_attr($atts['id']) . '"' : '';
         
         ob_start();
+        
+        // Include CSS files
+        foreach ($assets['css'] as $css_url) {
+            echo '<link rel="stylesheet" type="text/css" href="' . esc_url($css_url) . '?v=' . ESTIMATE_CALCULATOR_VERSION . '">' . "\n";
+        }
+        
         ?>
-        <div class="<?php echo esc_attr($atts['class']); ?>"<?php echo $id_attr; ?> data-calculator-slug="<?php echo esc_attr($atts['slug']); ?>">
-            <div class="calculator-info">
-                <h3><?php echo esc_html($calculator_post->post_title); ?></h3>
-                <?php if (!empty($calculator_post->post_content)): ?>
-                    <div class="calculator-description">
-                        <?php echo wp_kses_post($calculator_post->post_content); ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-            <div class="calculator-data" style="display: none;">
-                <?php echo wp_json_encode($calculator_data); ?>
-            </div>
-            <div class="calculator-placeholder">
-                <p><?php _e('Calculator loading...', 'estimate-calculator'); ?></p>
-                <script>
-                    // Auto-initialize calculator if you have JavaScript that handles it
-                    document.addEventListener('DOMContentLoaded', function() {
-                        if (typeof window.initializeEstimateCalculator === 'function') {
-                            window.initializeEstimateCalculator('<?php echo esc_js($atts['slug']); ?>');
-                        }
-                    });
-                </script>
-            </div>
+        <div class="<?php echo esc_attr($atts['class']); ?>" id="<?php echo esc_attr($calculator_id); ?>" data-calculator-slug="<?php echo esc_attr($calculator_config['slug'] ? $calculator_config['slug'] : 'home'); ?>">
+            <!-- React App Container -->
+            <div id="<?php echo esc_attr($calculator_id); ?>-react-root" class="estimate-calculator-react-root"></div>
+            
+            <!-- Fallback content for when JavaScript is disabled -->
+            <noscript>
+                <div class="estimate-calculator-noscript">
+                    <?php if ($calculator_config['mode'] === 'home'): ?>
+                        <h3><?php _e('Estimate Calculator', 'estimate-calculator'); ?></h3>
+                        <p><?php _e('Welcome to the estimate calculator. This application requires JavaScript to be enabled in your browser.', 'estimate-calculator'); ?></p>
+                    <?php else: ?>
+                        <h3><?php echo esc_html($calculator_config['calculatorTitle']); ?></h3>
+                        <p><?php _e('This calculator requires JavaScript to be enabled in your browser.', 'estimate-calculator'); ?></p>
+                    <?php endif; ?>
+                </div>
+            </noscript>
+            
+            <!-- Configuration data for React app -->
+            <script type="application/json" id="<?php echo esc_attr($calculator_id); ?>-config">
+                <?php echo wp_json_encode($calculator_config); ?>
+            </script>
+            
+            <!-- WordPress API Configuration -->
+            <script>
+                window.estimateCalculatorWP = {
+                    apiUrl: '<?php echo esc_js(home_url('/wp-json/estimate-calculator/v1/')); ?>',
+                    nonce: '<?php echo esc_js(wp_create_nonce('wp_rest')); ?>',
+                    pluginUrl: '<?php echo esc_js(ESTIMATE_CALCULATOR_PLUGIN_URL); ?>',
+                    buildPath: '<?php echo esc_js(ESTIMATE_CALCULATOR_PLUGIN_URL . 'app/build/'); ?>'
+                };
+            </script>
         </div>
+        
+        <?php
+        
+        // Include JS files
+        foreach ($assets['js'] as $js_url) {
+            echo '<script type="text/javascript" src="' . esc_url($js_url) . '?v=' . ESTIMATE_CALCULATOR_VERSION . '"></script>' . "\n";
+        }
+        
+        ?>
+        
+        <!-- Initialize React app -->
+        <script>
+            (function() {
+                function initCalculator<?php echo esc_js($js_function_id); ?>() {
+                    var config = document.getElementById('<?php echo esc_js($calculator_id); ?>-config');
+                    var containerElement = document.getElementById('<?php echo esc_js($calculator_id); ?>-react-root');
+                    
+                    if (!config || !containerElement) {
+                        return;
+                    }
+                    
+                    var calculatorConfig;
+                    try {
+                        calculatorConfig = JSON.parse(config.textContent);
+                    } catch (e) {
+                        containerElement.innerHTML = '<div class="estimate-calculator-error">Failed to load calculator configuration.</div>';
+                        return;
+                    }
+                    
+                    // Function to try initialization
+                    function tryInitialization() {
+                        // Method 1: Try the WordPress integration function
+                        if (typeof window.initEstimateCalculator === 'function') {
+                            try {
+                                window.initEstimateCalculator(containerElement, calculatorConfig);
+                                return true;
+                            } catch (e) {
+                                // Silent fail, try next method
+                            }
+                        }
+                        
+                        // Method 2: Try the React EstimateCalculator.init method
+                        if (window.EstimateCalculator && typeof window.EstimateCalculator.init === 'function') {
+                            try {
+                                containerElement.setAttribute('data-wp-config', JSON.stringify(calculatorConfig));
+                                window.EstimateCalculator.init();
+                                return true;
+                            } catch (e) {
+                                // Silent fail
+                            }
+                        }
+                        
+                        return false;
+                    }
+                    
+                    // Try immediate initialization
+                    if (tryInitialization()) {
+                        return;
+                    }
+                    
+                    // Try with delays if immediate fails
+                    setTimeout(function() {
+                        if (tryInitialization()) {
+                            return;
+                        }
+                        
+                        setTimeout(function() {
+                            if (!tryInitialization()) {
+                                containerElement.innerHTML = '<div class="estimate-calculator-error">Unable to initialize calculator. Please refresh the page.</div>';
+                            }
+                        }, 2000);
+                    }, 500);
+                }
+                
+                // Run initialization when DOM is ready or immediately if already ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initCalculator<?php echo esc_js($js_function_id); ?>);
+                } else {
+                    initCalculator<?php echo esc_js($js_function_id); ?>();
+                }
+            })();
+        </script>
+        
+        <style>
+            .estimate-calculator-wrapper {
+                width: 100%;
+                max-width: 100%;
+            }
+            
+            .estimate-calculator-react-root {
+                min-height: 400px;
+            }
+            
+            .estimate-calculator-loading,
+            .estimate-calculator-error {
+                padding: 20px;
+                text-align: center;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: #f9f9f9;
+            }
+            
+            .estimate-calculator-error {
+                border-color: #d63384;
+                background-color: #f8d7da;
+                color: #721c24;
+            }
+            
+            .estimate-calculator-noscript {
+                padding: 20px;
+                border: 1px solid #ffc107;
+                border-radius: 4px;
+                background-color: #fff3cd;
+                color: #856404;
+            }
+        </style>
         <?php
         return ob_get_clean();
     }
@@ -1111,6 +1551,7 @@ class EstimateCalculator {
         <?php
     }
     
+    
     /**
      * Plugin activation
      */
@@ -1123,7 +1564,8 @@ class EstimateCalculator {
             'default_slug' => 'calculator-default',
             'sendgrid_api_key' => '',
             'jobtread_api_key' => '',
-            'jobtread_api_url' => ''
+            'jobtread_api_url' => '',
+            'jobtread_organization_id' => ''
         );
         
         $existing_options = get_option('estimate_calculator_settings', array());

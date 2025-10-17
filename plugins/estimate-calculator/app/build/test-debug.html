@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Estimate Calculator Debug Test</title>
+    <link rel="stylesheet" href="static/css/main.2a3e6dc3.css" />
+  </head>
+  <body>
+    <h1>Estimate Calculator Debug Test</h1>
+
+    <div
+      id="test-container"
+      class="estimate-calculator-react-root"
+      style="border: 2px solid blue; padding: 20px; margin: 20px"
+    >
+      <p>Waiting for React to initialize...</p>
+    </div>
+
+    <script type="application/json" id="test-container-config">
+      {
+        "mode": "home",
+        "slug": null,
+        "calculatorId": null,
+        "calculatorTitle": null,
+        "calculatorSlug": null,
+        "formFields": {},
+        "questions": [],
+        "apiEndpoints": {
+          "getData": "/wp-json/estimate-calculator/v1/get-calculator-data",
+          "getQuestions": "/wp-json/estimate-calculator/v1/get-questions",
+          "getCategoryData": "/wp-json/estimate-calculator/v1/get-category-data",
+          "getResults": "/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-results",
+          "getEmail": "/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-email",
+          "sendEmail": "/wp-json/estimate-calculator/v1/send-email",
+          "createCustomer": "/wp-json/estimate-calculator/v1/create-jobtread-customer"
+        }
+      }
+    </script>
+
+    <script>
+      console.log("🚀 Debug Test Page Loaded");
+
+      // Test configuration
+      function testConfig() {
+        var config = document.getElementById("test-container-config");
+        if (config) {
+          try {
+            var configData = JSON.parse(config.textContent);
+            console.log("✅ Config parsed successfully:", configData);
+            return configData;
+          } catch (e) {
+            console.error("❌ Config parse error:", e);
+            return null;
+          }
+        } else {
+          console.error("❌ Config element not found");
+          return null;
+        }
+      }
+
+      // Test initialization
+      function testInitialization() {
+        console.log("🔧 Testing initialization...");
+
+        var container = document.getElementById("test-container");
+        var config = testConfig();
+
+        if (!container) {
+          console.error("❌ Container not found");
+          return;
+        }
+
+        if (!config) {
+          console.error("❌ Config not available");
+          return;
+        }
+
+        console.log(
+          "Available window properties:",
+          Object.keys(window).filter(
+            (k) =>
+              k.toLowerCase().includes("calc") ||
+              k.toLowerCase().includes("estimate") ||
+              k.toLowerCase().includes("react")
+          )
+        );
+
+        // Test WordPress integration function
+        if (typeof window.initEstimateCalculator === "function") {
+          console.log("✅ Found window.initEstimateCalculator");
+          try {
+            window.initEstimateCalculator(container, config);
+            console.log("✅ WordPress integration successful");
+          } catch (e) {
+            console.error("❌ WordPress integration failed:", e);
+          }
+        } else {
+          console.log("❌ window.initEstimateCalculator not found");
+        }
+
+        // Test React app initialization
+        if (
+          window.EstimateCalculator &&
+          typeof window.EstimateCalculator.init === "function"
+        ) {
+          console.log("✅ Found window.EstimateCalculator.init");
+          try {
+            container.setAttribute("data-wp-config", JSON.stringify(config));
+            window.EstimateCalculator.init();
+            console.log("✅ React app initialization successful");
+          } catch (e) {
+            console.error("❌ React app initialization failed:", e);
+          }
+        } else {
+          console.log("❌ window.EstimateCalculator.init not found");
+        }
+      }
+
+      // Wait for scripts to load
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("📄 DOM ready");
+        setTimeout(testInitialization, 100);
+        setTimeout(testInitialization, 1000);
+        setTimeout(testInitialization, 3000);
+      });
+    </script>
+
+    <!-- Load WordPress integration first, then React scripts -->
+    <script>
+      console.log("🚀 About to load wordpress-integration-test.js");
+    </script>
+    <script src="wordpress-integration-test.js"></script>
+    <script>
+      console.log(
+        "🔍 After loading wordpress-integration-test.js, window.initEstimateCalculator =",
+        typeof window.initEstimateCalculator
+      );
+      console.log(
+        "🔍 After loading wordpress-integration-test.js, window.EstimateCalculator =",
+        typeof window.EstimateCalculator
+      );
+    </script>
+    <script src="static/js/main.d6796947.js"></script>
+    <script>
+      console.log(
+        "🔍 After loading main React bundle, window.initEstimateCalculator =",
+        typeof window.initEstimateCalculator
+      );
+      console.log(
+        "🔍 After loading main React bundle, window.EstimateCalculator =",
+        typeof window.EstimateCalculator
+      );
+    </script>
+
+    <div
+      style="
+        margin: 20px;
+        padding: 20px;
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+      "
+    >
+      <h3>Debug Information</h3>
+      <p>Check the browser console for detailed debug messages.</p>
+      <p>
+        If the calculator initializes properly, you should see a green border
+        with success message above.
+      </p>
+    </div>
+  </body>
+</html>

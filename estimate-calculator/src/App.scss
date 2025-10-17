@@ -1,6 +1,23 @@
 .App {
-  text-align: center;
   font-family: "Ovo", serif;
+  width: 100%;
+  box-sizing: border-box;
+
+  // Reset any inherited styles when embedded
+  &.embedded {
+    text-align: initial;
+    background: transparent;
+    min-height: auto;
+  }
+}
+
+// Ensure proper container sizing for embedded mode
+.estimate-calculator-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .App-logo {

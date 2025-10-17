@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marketing Notification - New Lead</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .email-container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        color: #c12530;
+        border-bottom: 2px solid #c12530;
+        padding-bottom: 10px;
+      }
+      .contact-info {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      .contact-info h3 {
+        color: #333;
+        margin-top: 0;
+      }
+      .contact-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .contact-table td {
+        padding: 8px;
+      }
+      .contact-table td:first-child {
+        font-weight: bold;
+        width: 30%;
+      }
+      .next-steps {
+        background-color: #e8f4f8;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      .next-steps h4 {
+        color: #0066cc;
+        margin-top: 0;
+      }
+      .next-steps ul {
+        margin: 10px 0;
+        padding-left: 20px;
+      }
+      .breakdown-section {
+        margin: 20px 0;
+        font-family: Arial, sans-serif;
+      }
+      .breakdown-section h3 {
+        color: #333;
+        margin-bottom: 15px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid #ddd;
+        text-align: left;
+      }
+      th {
+        background-color: #f5f5f5;
+      }
+      td:last-child {
+        text-align: right;
+      }
+      tfoot tr {
+        background-color: #f9f9f9;
+        font-weight: bold;
+      }
+      tfoot td {
+        padding: 15px;
+        font-size: 16px;
+      }
+      tfoot td:last-child {
+        color: #e74c3c;
+      }
+      .disclaimer {
+        color: #666;
+        font-style: italic;
+        margin-top: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <h2>🎯 New Estimate Calculator Lead</h2>
+
+      <div class="contact-info">
+        <h3>Contact Information:</h3>
+        <table class="contact-table">
+          <tr>
+            <td>Name:</td>
+            <td>John Smith</td>
+          </tr>
+          <tr>
+            <td>Email:</td>
+            <td>
+              <a href="mailto:john.smith@email.com">john.smith@email.com</a>
+            </td>
+          </tr>
+          <tr>
+            <td>Phone:</td>
+            <td><a href="tel:555-123-4567">555-123-4567</a></td>
+          </tr>
+          <tr>
+            <td>ZIP Code:</td>
+            <td>12345</td>
+          </tr>
+          <tr>
+            <td>Submission Time:</td>
+            <td>October 15, 2025, 2:30:00 PM</td>
+          </tr>
+        </table>
+      </div>
+
+      <div>
+        <h3>Customer's Project Estimate:</h3>
+
+        <!-- This is the same breakdown that gets sent to the customer -->
+        <div class="breakdown-section">
+          <h3>Estimate Breakdown</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Cost Range</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <img
+                    src="https://via.placeholder.com/50x50"
+                    alt="Option image"
+                    style="
+                      width: 50px;
+                      height: 50px;
+                      object-fit: cover;
+                      margin-right: 10px;
+                      vertical-align: middle;
+                    "
+                  />
+                  <strong
+                    >What type of kitchen remodel are you planning?</strong
+                  >
+                </td>
+                <td>
+                  <strong>Small Kitchen (apartment/condo)</strong><br />
+                  A compact space, usually under 100 sq ft. Includes updates
+                  like cabinets, counters, and flooring.
+                </td>
+                <td>$15,000 - $25,000</td>
+              </tr>
+              <tr>
+                <td>
+                  <img
+                    src="https://via.placeholder.com/50x50"
+                    alt="Option image"
+                    style="
+                      width: 50px;
+                      height: 50px;
+                      object-fit: cover;
+                      margin-right: 10px;
+                      vertical-align: middle;
+                    "
+                  />
+                  <strong
+                    >Are you changing the layout or moving Plumbing/Electricals
+                    and or Mechanicals?</strong
+                  >
+                </td>
+                <td>
+                  <strong>No – keeping everything in the same place</strong
+                  ><br />
+                  A straight swap of existing cabinets and appliances — the most
+                  budget-friendly option.
+                </td>
+                <td>$0</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" style="text-align: right">
+                  <strong>Estimate Total:</strong>
+                </td>
+                <td>
+                  <strong>$15,000 - $25,000</strong>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="next-steps">
+        <h4>📞 Next Steps:</h4>
+        <ul>
+          <li>Follow up with customer within 24 hours</li>
+          <li>Schedule consultation if interested</li>
+          <li>Customer has already received their estimate via email</li>
+          <li>JobTread account and contact have been created automatically</li>
+        </ul>
+      </div>
+
+      <p class="disclaimer">
+        This notification was automatically generated by the RPK Construction
+        Estimate Calculator.
+      </p>
+    </div>
+  </body>
+</html>

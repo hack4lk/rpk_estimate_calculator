@@ -337,7 +337,7 @@ export const sendCalculatorEmail = async (
       ? emailContent 
       : "<p>Thank you for using our estimate calculator. Your personalized results have been calculated based on your selections.</p><p>We'll be in touch soon with your detailed estimate.</p>";
     
-    console.log(`📧 Final email content to use:`, finalEmailContent);
+    // console.log(`📧 Final email content to use:`, finalEmailContent);
     
     // Personalize the email content
     const personalizedContent = `<p>Hello ${userName},</p>${finalEmailContent}`;
@@ -448,6 +448,194 @@ export const createJobTreadCustomer = async (formData: any): Promise<any> => {
   }
 };
 
+/**
+ * Create JobTread account and contact using enhanced WordPress API
+ */
+export const createJobTreadAccountContact = async (formData: any): Promise<any> => {
+  try {
+    console.log(`🏢 Creating JobTread account and contact with data:`, formData);
+    
+    // Create the correct URL for the enhanced account and contact creation endpoint
+    const accountContactApiUrl = API_CONFIG.baseUrl.replace('/get-calculator-data', '/create-jobtread-account-contact');
+    console.log(`📤 Posting to account/contact API URL: ${accountContactApiUrl}`);
+    
+    // Prepare the data in the required format
+    const requestData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      zip: formData.zip
+    };
+    
+    console.log(`📋 Request data:`, requestData);
+    
+    // Post to WordPress API endpoint using the correct URL
+    const response: AxiosResponse<any> = await axios.post(accountContactApiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      timeout: API_CONFIG.timeout,
+    });
+    
+    console.log(`✅ Account/Contact creation API response:`, response.data);
+    
+    if (response.data.success) {
+      console.log(`✅ JobTread account and contact created successfully. Account ID: ${response.data.account_id}`);
+      return { 
+        success: true, 
+        message: "Account and contact created successfully", 
+        data: response.data,
+        accountId: response.data.account_id 
+      };
+    } else {
+      throw new Error(response.data.message || "Account and contact creation failed");
+    }
+  } catch (error) {
+    console.error(`Error creating JobTread account and contact:`, error);
+    
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError;
+      
+      if (axiosError.response) {
+        console.error(`Account/Contact API Error ${axiosError.response.status}:`, axiosError.response.data);
+      } else if (axiosError.request) {
+        console.error(`Network error creating account/contact - no response received`);
+      }
+    }
+    
+    throw new Error(`Failed to create account and contact: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+};
+
+/**
+ * Send marketing notification email to info@rpkconstruction.com
+ */
+export const sendMarketingNotification = async (formData: any, estimateBreakdownHTML: string): Promise<any> => {
+  try {
+    console.log(`📬 Sending marketing notification for new lead: ${formData.email}`);
+    
+    // Create detailed marketing email content
+    const marketingEmailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #C12530; border-bottom: 2px solid #C12530; padding-bottom: 10px;">
+          🎯 New Estimate Calculator Lead
+        </h2>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #333; margin-top: 0;">Contact Information:</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px; font-weight: bold; width: 30%;">Name:</td>
+              <td style="padding: 8px;">${formData.name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Email:</td>
+              <td style="padding: 8px;"><a href="mailto:${formData.email}">${formData.email}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Phone:</td>
+              <td style="padding: 8px;"><a href="tel:${formData.phone}">${formData.phone}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">ZIP Code:</td>
+              <td style="padding: 8px;">${formData.zip}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: bold;">Submission Time:</td>
+              <td style="padding: 8px;">${new Date().toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin: 20px 0;">
+          <h3 style="color: #333;">Customer's Project Estimate:</h3>
+          ${estimateBreakdownHTML}
+        </div>
+
+        <div style="background-color: #e8f4f8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <h4 style="color: #0066cc; margin-top: 0;">📞 Next Steps:</h4>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Follow up with customer within 24 hours</li>
+            <li>Schedule consultation if interested</li>
+            <li>Customer has already received their estimate via email</li>
+            <li>JobTread account and contact have been created automatically</li>
+          </ul>
+        </div>
+
+        <p style="color: #666; font-style: italic; margin-top: 30px;">
+          This notification was automatically generated by the RPK Construction Estimate Calculator.
+        </p>
+      </div>
+    `;
+
+    const emailData = {
+      personalizations: [
+        {
+          to: [{ 
+            email: "info@rpkconstruction.com", 
+            // email: "hack4lk@gmail.com",
+            name: "RPK Construction Marketing" 
+          }],
+          subject: `🏗️ New Estimate Lead: ${formData.name} (${formData.email})`
+        }
+      ],
+      from: {
+        email: "info@rpkconstruction.com",
+        name: "RPK Estimate Calculator"
+      },
+      content: [
+        {
+          type: "text/html",
+          value: marketingEmailContent
+        }
+      ]
+    };
+    
+    console.log(`📧 Marketing email data prepared for: info@rpkconstruction.com`);
+    
+    // Create the correct URL for the email endpoint
+    const emailApiUrl = API_CONFIG.baseUrl.replace('/get-calculator-data', '/send-email');
+    console.log(`📤 Posting marketing notification to email API URL: ${emailApiUrl}`);
+    
+    // Post to WordPress API endpoint
+    const response: AxiosResponse<any> = await axios.post(emailApiUrl, emailData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      timeout: API_CONFIG.timeout,
+    });
+    
+    console.log(`✅ Marketing notification response status: ${response.status}`);
+    console.log(`📧 Marketing notification sent successfully to info@rpkconstruction.com`);
+    
+    if (response.data.success) {
+      return {
+        success: true,
+        message: "Marketing notification sent successfully",
+        data: response.data
+      };
+    } else {
+      throw new Error(response.data.message || "Marketing notification failed");
+    }
+    
+  } catch (error) {
+    console.error("Error sending marketing notification:", error);
+    
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response) {
+        console.error(`Marketing Email API Error ${axiosError.response.status}:`, axiosError.response.data);
+      } else if (axiosError.request) {
+        console.error(`Network error sending marketing notification - no response received`);
+      }
+    }
+    
+    throw new Error(`Failed to send marketing notification: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+};
+
 // Export the main API service object for backward compatibility
 export const apiService = {
   getHomePageData,
@@ -455,5 +643,7 @@ export const apiService = {
   getCalculatorResults,
   getCalculatorEmail,
   sendCalculatorEmail,
-  createJobTreadCustomer
+  createJobTreadCustomer,
+  createJobTreadAccountContact,
+  sendMarketingNotification
 };

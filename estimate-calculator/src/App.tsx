@@ -168,8 +168,16 @@ function App() {
       handleRestart();
     };
 
+    // Detect if we're in embedded mode
+    const isEmbedded = React.useMemo(() => {
+      const container = document.querySelector("#root");
+      return !container || container.id !== "root";
+    }, []);
+
+    const appClasses = `App ${isEmbedded ? "embedded" : "standalone"}`;
+
     return (
-      <div className="App">
+      <div className={appClasses}>
         {currentScreen === "home" && (
           <HomeScreen onCategoryClick={handleCategoryClick} />
         )}

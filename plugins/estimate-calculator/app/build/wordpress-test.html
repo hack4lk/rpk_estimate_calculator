@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WordPress Shortcode Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        line-height: 1.6;
+      }
+      .shortcode-container {
+        border: 2px solid #007cba;
+        padding: 20px;
+        margin: 20px 0;
+        background: #f8f9fa;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WordPress Shortcode Integration Test</h1>
+
+    <div class="shortcode-container">
+      <h2>Test 1: Home Mode Shortcode</h2>
+
+      <!-- This simulates the WordPress shortcode output -->
+      <div
+        id="estimate-calculator-home-react-root"
+        class="estimate-calculator-react-root"
+      >
+        <p>Loading calculator...</p>
+      </div>
+
+      <script type="application/json" id="estimate-calculator-home-config">
+        {
+          "mode": "home",
+          "slug": null,
+          "calculatorId": null,
+          "calculatorTitle": null,
+          "calculatorSlug": null,
+          "formFields": {},
+          "questions": [],
+          "apiEndpoints": {
+            "getData": "/wp-json/estimate-calculator/v1/get-calculator-data",
+            "getQuestions": "/wp-json/estimate-calculator/v1/get-questions",
+            "getCategoryData": "/wp-json/estimate-calculator/v1/get-category-data",
+            "getResults": "/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-results",
+            "getEmail": "/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-email",
+            "sendEmail": "/wp-json/estimate-calculator/v1/send-email",
+            "createCustomer": "/wp-json/estimate-calculator/v1/create-customer"
+          }
+        }
+      </script>
+    </div>
+
+    <div class="shortcode-container">
+      <h2>Test 2: Specific Calculator Mode Shortcode</h2>
+
+      <!-- This simulates a calculator-specific shortcode -->
+      <div
+        id="estimate-calculator-kitchen-react-root"
+        class="estimate-calculator-react-root"
+      >
+        <p>Loading kitchen calculator...</p>
+      </div>
+
+      <script type="application/json" id="estimate-calculator-kitchen-config">
+        {
+          "mode": "calculator",
+          "slug": "kitchen-remodel",
+          "calculatorId": "kitchens",
+          "calculatorTitle": "Kitchen Remodel Calculator",
+          "calculatorSlug": "kitchen-remodel",
+          "formFields": {
+            "form_headline": "Get Your Kitchen Remodel Estimate",
+            "form_description": "Complete the form below to receive your personalized estimate."
+          },
+          "questions": [],
+          "apiEndpoints": {
+            "getData": "/wp-json/estimate-calculator/v1/get-calculator-data",
+            "getQuestions": "/wp-json/estimate-calculator/v1/get-questions",
+            "getCategoryData": "/wp-json/estimate-calculator/v1/get-category-data",
+            "getResults": "/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-results",
+            "getEmail": "/wp-json/estimate-calculator/v1/get-calculator-data?slug=calculator-email",
+            "sendEmail": "/wp-json/estimate-calculator/v1/send-email",
+            "createCustomer": "/wp-json/estimate-calculator/v1/create-customer"
+          }
+        }
+      </script>
+    </div>
+
+    <!-- WordPress Integration Script - MUST load first -->
+    <script src="wordpress-integration-test.js"></script>
+
+    <!-- Main React Bundle - loads second -->
+    <script src="static/js/main.d6796947.js"></script>
+
+    <script>
+      // Debug function to test everything is working
+      function runTests() {
+        console.log("🧪 Running WordPress integration tests...");
+
+        // Test 1: Check functions exist
+        console.log("📝 Test 1: Function availability");
+        if (typeof window.initEstimateCalculator === "function") {
+          console.log("✅ window.initEstimateCalculator available");
+        } else {
+          console.error("❌ window.initEstimateCalculator missing");
+          return;
+        }
+
+        if (
+          window.EstimateCalculator &&
+          typeof window.EstimateCalculator.init === "function"
+        ) {
+          console.log("✅ window.EstimateCalculator.init available");
+        } else {
+          console.error("❌ window.EstimateCalculator.init missing");
+          return;
+        }
+
+        // Test 2: Run initialization
+        console.log("📝 Test 2: Running EstimateCalculator.init()");
+        try {
+          window.EstimateCalculator.init();
+          console.log("✅ EstimateCalculator.init() executed successfully");
+        } catch (error) {
+          console.error("❌ EstimateCalculator.init() failed:", error);
+        }
+      }
+
+      // Wait for everything to load
+      window.addEventListener("load", function () {
+        setTimeout(runTests, 100);
+      });
+    </script>
+
+    <div
+      style="
+        margin: 20px;
+        padding: 20px;
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+      "
+    >
+      <h3>Expected Results</h3>
+      <p><strong>✅ Success Indicators:</strong></p>
+      <ul>
+        <li>
+          Green bordered containers should appear above (WordPress integration
+          working)
+        </li>
+        <li>
+          Console should show "✅ WordPress Integration Working!" messages
+        </li>
+        <li>No "❌" error messages in console</li>
+        <li>Configuration data should be displayed in the containers</li>
+      </ul>
+
+      <p><strong>❌ Failure Indicators:</strong></p>
+      <ul>
+        <li>Red bordered error containers</li>
+        <li>Console errors about missing functions</li>
+        <li>"Loading calculator..." text still visible</li>
+      </ul>
+    </div>
+  </body>
+</html>

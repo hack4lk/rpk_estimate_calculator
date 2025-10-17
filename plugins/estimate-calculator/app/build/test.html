@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React Build Test</title>
+    <link rel="stylesheet" href="./static/css/main.2a3e6dc3.css" />
+  </head>
+  <body>
+    <h1>React Build Test</h1>
+    <div id="root">Loading...</div>
+    <div id="estimate-calculator-test" class="estimate-calculator-react-root">
+      WordPress Test Container
+    </div>
+
+    <script>
+      console.log("=== React Build Test ===");
+      console.log("Page loaded, checking for React functions...");
+
+      setTimeout(function () {
+        console.log("After 1 second:");
+        console.log(
+          "window.initEstimateCalculator:",
+          typeof window.initEstimateCalculator
+        );
+        console.log(
+          "window.EstimateCalculator:",
+          typeof window.EstimateCalculator
+        );
+
+        if (window.EstimateCalculator) {
+          console.log("EstimateCalculator object:", window.EstimateCalculator);
+          console.log(
+            "EstimateCalculator.init:",
+            typeof window.EstimateCalculator.init
+          );
+          console.log(
+            "EstimateCalculator.render:",
+            typeof window.EstimateCalculator.render
+          );
+        }
+
+        // Test the functions
+        if (typeof window.initEstimateCalculator === "function") {
+          console.log("Testing initEstimateCalculator...");
+          const testContainer = document.getElementById(
+            "estimate-calculator-test"
+          );
+          const testConfig = {
+            mode: "home",
+            slug: null,
+            calculatorId: null,
+            calculatorTitle: null,
+            calculatorSlug: null,
+            formFields: { form_headline: "Test Headline" },
+            questions: [],
+            apiEndpoints: {},
+          };
+
+          try {
+            window.initEstimateCalculator(testContainer, testConfig);
+            console.log("✅ initEstimateCalculator test successful");
+          } catch (e) {
+            console.error("❌ initEstimateCalculator test failed:", e);
+          }
+        }
+
+        if (
+          window.EstimateCalculator &&
+          typeof window.EstimateCalculator.init === "function"
+        ) {
+          console.log("Testing EstimateCalculator.init...");
+          try {
+            window.EstimateCalculator.init();
+            console.log("✅ EstimateCalculator.init test successful");
+          } catch (e) {
+            console.error("❌ EstimateCalculator.init test failed:", e);
+          }
+        }
+      }, 1000);
+
+      setTimeout(function () {
+        console.log("After 3 seconds:");
+        console.log(
+          "window.initEstimateCalculator:",
+          typeof window.initEstimateCalculator
+        );
+        console.log(
+          "window.EstimateCalculator:",
+          typeof window.EstimateCalculator
+        );
+      }, 3000);
+    </script>
+
+    <script src="./static/js/main.adad0e50.js"></script>
+  </body>
+</html>

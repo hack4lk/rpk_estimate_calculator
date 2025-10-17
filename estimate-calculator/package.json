@@ -32,6 +32,8 @@
     "build": "react-scripts build",
     "build:dev": "NODE_ENV=development react-scripts build",
     "build:prod": "NODE_ENV=production react-scripts build",
+    "build:wordpress": "npm run build:prod && npm run package:wordpress",
+    "package:wordpress": "mkdir -p dist/wordpress && cp -r build/* dist/wordpress/ && cp public/wordpress-shortcode.php dist/wordpress/ && cp WORDPRESS_INTEGRATION.md dist/wordpress/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

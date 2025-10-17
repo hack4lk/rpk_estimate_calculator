@@ -173,7 +173,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onCategoryClick }) => {
                   gutterBottom
                   variant="h6"
                   component="h2"
-                  sx={{ fontWeight: "semibold", mb: 1 }}
+                  sx={{ fontWeight: "semibold", mb: 1, color: "#fff" }}
                 >
                   {category.title}
                 </Typography>

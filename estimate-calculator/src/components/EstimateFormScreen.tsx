@@ -11,6 +11,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { Category, CalculatorData } from "../types";
+import "./EstimateFormScreen.scss";
 
 interface EstimateFormScreenProps {
   category: Category;
@@ -122,23 +123,25 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" className="estimate-form-container">
       {/* Category Header */}
       <Typography
         variant="h3"
         component="h1"
         gutterBottom
+        className="category-header"
         sx={{ fontWeight: "bold", color: "primary.main", mb: 4 }}
       >
         {category.title}
       </Typography>
 
-      <Card sx={{ mb: 4 }}>
-        <CardContent sx={{ p: 4 }}>
+      <Card className="form-card" sx={{ mb: 4 }}>
+        <CardContent className="form-card-content" sx={{ p: 4 }}>
           {/* Form Headline */}
           <Typography
             variant="h4"
             gutterBottom
+            className="form-headline"
             sx={{ fontWeight: "semibold", mb: 3 }}
           >
             {categoryData.form_fields.form_headline}
@@ -147,6 +150,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
           {/* Form Description */}
           <Typography
             variant="body1"
+            className="form-description"
             sx={{ mb: 4, lineHeight: 1.6 }}
             dangerouslySetInnerHTML={{
               __html: categoryData.form_fields.form_description,
@@ -155,6 +159,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
 
           {/* Form Fields */}
           <Box
+            className="form-grid"
             display="grid"
             gridTemplateColumns={{ xs: "1fr", sm: "1fr 1fr" }}
             gap={3}
@@ -169,6 +174,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
               fullWidth
               required
               variant="outlined"
+              className="estimate-form-input"
             />
 
             <TextField
@@ -181,6 +187,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
               fullWidth
               required
               variant="outlined"
+              className="estimate-form-input"
             />
 
             <TextField
@@ -193,6 +200,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
               required
               variant="outlined"
               placeholder="12345 or 12345-6789"
+              className="estimate-form-input"
             />
 
             <TextField
@@ -205,11 +213,17 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
               required
               variant="outlined"
               placeholder="(555) 123-4567"
+              className="estimate-form-input"
             />
           </Box>
 
           {/* Form Footer Text */}
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+          <Typography
+            variant="body2"
+            className="form-footer"
+            color="text.secondary"
+            sx={{ mb: 4 }}
+          >
             {categoryData.form_fields.form_footer_text}
           </Typography>
         </CardContent>
@@ -217,6 +231,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
 
       {/* Navigation Controls */}
       <Box
+        className="navigation-controls"
         display="flex"
         justifyContent="flex-start"
         alignItems="center"
@@ -227,6 +242,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
           variant="outlined"
           startIcon={<ArrowBackIcon />}
           onClick={onBack}
+          className="back-button"
           sx={{ minWidth: 120 }}
         >
           Back
@@ -236,6 +252,7 @@ const EstimateFormScreen: React.FC<EstimateFormScreenProps> = ({
           variant="contained"
           endIcon={<ArrowForwardIcon />}
           onClick={handleSubmit}
+          className="submit-button"
           sx={{
             minWidth: 180,
             bgcolor: "#C12530",

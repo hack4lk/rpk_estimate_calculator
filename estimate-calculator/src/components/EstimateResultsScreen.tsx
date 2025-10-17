@@ -42,6 +42,13 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
 }) => {
   const { getCategoryQuestions } = useCalculator();
 
+  // State to track if email has been sent to prevent duplicates
+  const [emailSent, setEmailSent] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  // Use ref to track if email processing has been initiated for this specific form data
+  const emailProcessingRef = React.useRef<boolean>(false);
+
   // Get selected options for this category
   const selectedOptionsForCategory = getCategoryQuestions(category.id);
 
@@ -51,6 +58,7 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
       queryKey: ["categoryData", category.id],
       queryFn: () => apiService.getCategoryData(category.id),
       staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
     });
 
   const {
@@ -62,6 +70,7 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
     queryFn: () => apiService.getCalculatorResults(category.id),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
+    refetchOnWindowFocus: false,
   });
 
   // Fetch email template
@@ -70,48 +79,213 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
     queryFn: () => apiService.getCalculatorEmail(),
     staleTime: 5 * 60 * 1000,
     retry: 2,
+    refetchOnWindowFocus: false,
   });
 
-  // Send email and create customer when both results and email template are loaded
+  // Generate HTML breakdown for email
+  const generateEstimateBreakdownHTML = React.useCallback(() => {
+    if (!categoryData || !selectedOptionsForCategory) return "";
+
+    let html = `
+      <div style="margin: 20px 0; font-family: Arial, sans-serif;">
+        <h3 style="color: #333; margin-bottom: 15px;">Estimate Breakdown</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #f5f5f5;">
+              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Item</th>
+              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Description</th>
+              <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Cost Range</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    // Add selected options to the breakdown
+    Object.entries(selectedOptionsForCategory).forEach(
+      ([questionIndex, optionIndex]) => {
+        const question = categoryData.questions[parseInt(questionIndex)];
+        const option = question?.option[optionIndex];
+
+        if (option) {
+          const minCost = parseFloat(option.minimum_cost) || 0;
+          const maxCost = parseFloat(option.maximum_cost) || 0;
+          const costRange =
+            minCost === maxCost
+              ? `$${minCost.toLocaleString()}`
+              : `$${minCost.toLocaleString()} - $${maxCost.toLocaleString()}`;
+
+          html += `
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">
+              ${
+                option.featured_image?.url
+                  ? `<img src="${option.featured_image.url}" alt="${
+                      option.featured_image.alt || "Option image"
+                    }" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">`
+                  : ""
+              }
+            </td>
+            <td style="padding: 10px; border: 1px solid #ddd;">
+              <strong>${option.short_description}</strong><br>
+              ${option.long_description || ""}
+            </td>
+            <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${costRange}</td>
+          </tr>
+        `;
+        }
+      }
+    );
+
+    // Calculate totals
+    let minTotal = 0;
+    let maxTotal = 0;
+
+    Object.entries(selectedOptionsForCategory).forEach(
+      ([questionIndex, optionIndex]) => {
+        const question = categoryData.questions[parseInt(questionIndex)];
+        const option = question?.option[optionIndex];
+        if (option) {
+          minTotal += parseInt(option.minimum_cost);
+          maxTotal += parseInt(option.maximum_cost);
+        }
+      }
+    );
+
+    const totalRange =
+      minTotal === maxTotal
+        ? `$${minTotal.toLocaleString()}`
+        : `$${minTotal.toLocaleString()} - $${maxTotal.toLocaleString()}`;
+
+    html += `
+          </tbody>
+          <tfoot>
+            <tr style="background-color: #f9f9f9; font-weight: bold;">
+              <td colspan="2" style="padding: 15px; border: 1px solid #ddd; text-align: right; font-size: 16px;">
+                <strong>Estimate Total:</strong>
+              </td>
+              <td style="padding: 15px; text-align: right; border: 1px solid #ddd; font-size: 16px; color: #e74c3c;">
+                <strong>${totalRange}</strong>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+
+    return html;
+  }, [categoryData, selectedOptionsForCategory]);
+
+  // Create a stable function for sending email that doesn't change on re-renders
+  const sendEmailAndCreateCustomer = React.useCallback(async () => {
+    if (emailProcessingRef.current) {
+      console.log("📧 Email processing already completed, skipping...");
+      return;
+    }
+
+    console.log("📧 Starting email processing...");
+    // Mark this as being processed immediately to prevent re-entry
+    emailProcessingRef.current = true;
+    setIsProcessing(true);
+
+    try {
+      console.log("📧 Processing email and customer creation...");
+      console.log("📧 Email data structure:", emailData);
+      console.log("📧 Email HTML content:", emailData?.data?.email_html);
+      console.log("📧 Email subject:", emailData?.data?.email_subject);
+      console.log("📧 Form data:", formData);
+
+      // Generate estimate breakdown HTML
+      const estimateBreakdownHTML = generateEstimateBreakdownHTML();
+      console.log(
+        "📊 Generated estimate breakdown HTML:",
+        estimateBreakdownHTML
+      );
+
+      // Combine email template with estimate breakdown
+      const fullEmailHTML = `
+        ${emailData.data.email_html}
+        
+        ${estimateBreakdownHTML}
+      `;
+
+      // console.log("📧 Full email HTML to be sent:", fullEmailHTML);
+      // return;
+
+      // Send email with estimate breakdown
+      console.log("📧 Sending calculator email with estimate breakdown...");
+      await apiService.sendCalculatorEmail(
+        formData.email,
+        formData.name,
+        fullEmailHTML,
+        emailData.data.email_subject
+      );
+      console.log("✅ Email sent successfully");
+
+      // Send marketing notification to info@rpkconstruction.com
+      console.log(
+        "📬 Sending marketing notification to info@rpkconstruction.com..."
+      );
+      await apiService.sendMarketingNotification(
+        formData,
+        estimateBreakdownHTML
+      );
+      console.log("✅ Marketing notification sent successfully");
+
+      // Create JobTread account and contact using enhanced endpoint
+      console.log("🏢 Creating JobTread account and contact...");
+      const accountResult = await apiService.createJobTreadAccountContact(
+        formData
+      );
+      console.log(
+        "✅ JobTread account and contact created successfully:",
+        accountResult
+      );
+
+      // Mark email as sent
+      setEmailSent(true);
+    } catch (error) {
+      console.error("❌ Failed to process email/customer creation:", error);
+      // Reset the processing ref on error so user can retry
+      emailProcessingRef.current = false;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [emailData, formData, generateEstimateBreakdownHTML]); // Added generateEstimateBreakdownHTML to dependencies
+
+  // Send email and create customer when all data is available
   React.useEffect(() => {
-    console.log("email data", emailData);
+    console.log("📧 Email processing check:", {
+      hasProcessed: emailProcessingRef.current,
+      isCurrentlyProcessing: isProcessing,
+      hasResultsData: !!resultsData,
+      hasEmailData: !!emailData,
+      hasFormData: !!formData,
+      hasEmail: !!formData?.email,
+      hasName: !!formData?.name,
+    });
+
+    // Only proceed if we have all required data and haven't processed yet
     if (
       resultsData &&
-      emailData &&
-      formData &&
-      formData.email &&
-      formData.name
+      emailData?.data?.email_html &&
+      emailData?.data?.email_subject &&
+      formData?.email &&
+      formData?.name &&
+      !emailSent &&
+      !emailProcessingRef.current
     ) {
-      const sendEmailAndCreateCustomer = async () => {
-        try {
-          console.log("📧 Processing email and customer creation...");
-          console.log("📧 Email data structure:", emailData);
-          console.log("📧 Email HTML content:", emailData.data?.email_html);
-          console.log("📧 Email subject:", emailData.data?.email_subject);
-          console.log("📧 Form data:", formData);
-
-          // Send email
-          console.log("📧 Sending calculator email...");
-          await apiService.sendCalculatorEmail(
-            formData.email,
-            formData.name,
-            emailData.data.email_html,
-            emailData.data.email_subject
-          );
-          console.log("✅ Email sent successfully");
-
-          // Create JobTread customer
-          console.log("👤 Creating JobTread customer...");
-          await apiService.createJobTreadCustomer(formData);
-          console.log("✅ JobTread customer created successfully");
-        } catch (error) {
-          console.error("❌ Failed to process email/customer creation:", error);
-        }
-      };
-
       sendEmailAndCreateCustomer();
     }
-  }, [resultsData, emailData, formData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    resultsData,
+    emailData?.data?.email_html,
+    emailData?.data?.email_subject,
+    formData?.email,
+    formData?.name,
+    emailSent,
+    sendEmailAndCreateCustomer,
+  ]);
 
   // Debug logging
   React.useEffect(() => {
@@ -250,6 +424,27 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
               mb: 4,
             }}
           />
+
+          {/* Processing Indicator */}
+          {isProcessing && (
+            <Alert
+              severity="info"
+              sx={{ mb: 4, display: "flex", alignItems: "center" }}
+            >
+              <CircularProgress size={20} sx={{ mr: 2 }} />
+              <Typography>Processing... please wait</Typography>
+            </Alert>
+          )}
+
+          {/* Success Indicator */}
+          {emailSent && !isProcessing && (
+            <Alert severity="success" sx={{ mb: 4 }}>
+              <Typography>
+                ✅ Your estimate has been processed and confirmation email has
+                been sent to {formData?.email}
+              </Typography>
+            </Alert>
+          )}
 
           {/* Calculator Results Headline */}
           <Typography
