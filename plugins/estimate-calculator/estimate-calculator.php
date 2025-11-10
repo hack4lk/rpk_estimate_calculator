@@ -313,6 +313,11 @@ class EstimateCalculator {
     public function get_calculator_data(WP_REST_Request $request) {
         $slug = $request->get_param('slug');
         
+        // Special handling for calculator-category-slugs (before post lookup)
+        if ($slug === 'calculator-category-slugs') {
+            return $this->get_category_slugs_data();
+        }
+        
         // Get calculator post by slug
         $calculator_post = $this->get_calculator_post_by_slug($slug);
         
@@ -948,6 +953,38 @@ class EstimateCalculator {
     }
     
     /**
+     * Get category slugs configuration data
+     */
+    private function get_category_slugs_data() {
+        $options = get_option('estimate_calculator_settings');
+        
+        // Default category slugs
+        $default_slugs = array(
+            'kitchens' => 'calculator-kitchens',
+            'bathrooms' => 'calculator-bathrooms',
+            'existing-bathrooms' => 'calculator-existing-bathrooms',
+            'basements' => 'calculator-basements',
+            'windows' => 'calculator-windows',
+            'flooring' => 'calculator-flooring',
+            'home-renovations' => 'calculator-renovations',
+            'structural' => 'calculator-structural'
+        );
+        
+        // Get configured slugs from options
+        $category_slugs = array();
+        foreach ($default_slugs as $category_key => $default_slug) {
+            $field_name = 'category_slug_' . str_replace('-', '_', $category_key);
+            $category_slugs[$category_key] = isset($options[$field_name]) ? $options[$field_name] : $default_slug;
+        }
+        
+        return array(
+            'success' => true,
+            'category_slugs' => $category_slugs,
+            'timestamp' => time()
+        );
+    }
+    
+    /**
      * Get form fields for the calculator
      */
     private function get_form_fields($post_id) {
@@ -1109,6 +1146,37 @@ class EstimateCalculator {
             'estimate-calculator-settings',
             'estimate_calculator_general'
         );
+        
+        // Category Slugs Section
+        add_settings_section(
+            'estimate_calculator_category_slugs',
+            __('Category Slugs Configuration', 'estimate-calculator'),
+            array($this, 'category_slugs_section_callback'),
+            'estimate-calculator-settings'
+        );
+        
+        // Add settings for each category slug
+        $categories = array(
+            'kitchens' => 'Kitchens',
+            'bathrooms' => 'Bathrooms',
+            'existing-bathrooms' => 'Existing Bathrooms',
+            'basements' => 'Basements',
+            'windows' => 'Windows',
+            'flooring' => 'Flooring',
+            'home-renovations' => 'Home Renovations',
+            'structural' => 'Structural'
+        );
+        
+        foreach ($categories as $category_key => $category_label) {
+            add_settings_field(
+                'category_slug_' . str_replace('-', '_', $category_key),
+                sprintf(__('%s Slug', 'estimate-calculator'), $category_label),
+                array($this, 'category_slug_field'),
+                'estimate-calculator-settings',
+                'estimate_calculator_category_slugs',
+                array('category_key' => $category_key, 'category_label' => $category_label)
+            );
+        }
     }
     
     /**
@@ -1287,6 +1355,44 @@ class EstimateCalculator {
         <input type="text" name="estimate_calculator_settings[jobtread_organization_id]" value="<?php echo esc_attr($value); ?>" class="regular-text" placeholder="22NBiqWKxCzr" />
         <p class="description">
             <?php _e('Enter your JobTread Organization ID for creating accounts and contacts (e.g., 22NBiqWKxCzr).', 'estimate-calculator'); ?>
+        </p>
+        <?php
+    }
+    
+    /**
+     * Category slugs section callback
+     */
+    public function category_slugs_section_callback() {
+        echo '<p>' . __('Configure the WordPress post/page slugs for each calculator category. These slugs will be used by the React application to fetch the correct calculator data.', 'estimate-calculator') . '</p>';
+        echo '<p><strong>' . __('Note:', 'estimate-calculator') . '</strong> ' . __('Changes here will be automatically picked up by the React application without requiring a code deployment.', 'estimate-calculator') . '</p>';
+    }
+    
+    /**
+     * Category slug field
+     */
+    public function category_slug_field($args) {
+        $options = get_option('estimate_calculator_settings');
+        $category_key = $args['category_key'];
+        $category_label = $args['category_label'];
+        
+        // Default values for each category
+        $defaults = array(
+            'kitchens' => 'calculator-kitchens',
+            'bathrooms' => 'calculator-bathrooms',
+            'existing-bathrooms' => 'calculator-existing-bathrooms',
+            'basements' => 'calculator-basements',
+            'windows' => 'calculator-windows',
+            'flooring' => 'calculator-flooring',
+            'home-renovations' => 'calculator-renovations',
+            'structural' => 'calculator-structural'
+        );
+        
+        $field_name = 'category_slug_' . str_replace('-', '_', $category_key);
+        $value = isset($options[$field_name]) ? $options[$field_name] : $defaults[$category_key];
+        ?>
+        <input type="text" name="estimate_calculator_settings[<?php echo esc_attr($field_name); ?>]" value="<?php echo esc_attr($value); ?>" class="regular-text" placeholder="<?php echo esc_attr($defaults[$category_key]); ?>" />
+        <p class="description">
+            <?php printf(__('WordPress slug for the %s calculator (e.g., %s)', 'estimate-calculator'), strtolower($category_label), $defaults[$category_key]); ?>
         </p>
         <?php
     }

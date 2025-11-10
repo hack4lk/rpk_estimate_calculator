@@ -6,10 +6,14 @@ import { axiosInstance, AxiosResponse, AxiosError } from "./httpClient";
 // Get configuration
 const API_CONFIG = configService.getConfig();
 
-// Category slug mapping
-const CATEGORY_SLUGS: { [key: string]: string } = {
+// Category slug mapping - will be populated from WordPress
+let CATEGORY_SLUGS: { [key: string]: string } = {};
+
+// Default fallback slugs in case WordPress endpoint is not available
+const DEFAULT_CATEGORY_SLUGS: { [key: string]: string } = {
   'kitchens': 'calculator-kitchens',
-  'bathrooms': 'calculator-bathrooms', 
+  'bathrooms': 'calculator-bathrooms',
+  'existing-bathrooms': 'calculator-existing-bathrooms',
   'basements': 'calculator-basements',
   'windows': 'calculator-windows',
   'flooring': 'calculator-flooring',
@@ -21,6 +25,44 @@ const CATEGORY_SLUGS: { [key: string]: string } = {
 if (API_CONFIG.environment === "development") {
   configService.logConfiguration();
 }
+
+/**
+ * Fetch category slug mappings from WordPress API
+ */
+const fetchCategorySlugs = async (): Promise<{ [key: string]: string }> => {
+  try {
+    console.log('🚀 Fetching category slug mappings from WordPress');
+    
+    const response: AxiosResponse<any> = await axiosInstance.get('', {
+      params: { 
+        slug: 'calculator-category-slugs'
+      }
+    });
+    
+    const result = response.data;
+    
+    if (result.success && result.category_slugs) {
+      console.log('✅ Successfully fetched category slugs from WordPress:', result.category_slugs);
+      return result.category_slugs;
+    } else {
+      console.warn('📝 Category slugs not found in WordPress response, using defaults');
+      return DEFAULT_CATEGORY_SLUGS;
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch category slugs from WordPress, using defaults:', error);
+    return DEFAULT_CATEGORY_SLUGS;
+  }
+};
+
+/**
+ * Initialize category slugs - fetch from WordPress or use defaults
+ */
+const initializeCategorySlugs = async (): Promise<void> => {
+  if (Object.keys(CATEGORY_SLUGS).length === 0) {
+    CATEGORY_SLUGS = await fetchCategorySlugs();
+    console.log('🔧 Category slugs initialized:', CATEGORY_SLUGS);
+  }
+};
 
 /**
  * Transform WordPress API response to the format expected by components
@@ -71,6 +113,7 @@ const generateDetailContent = (title: string, longDescription: string): string =
   const defaultContent: { [key: string]: string } = {
     'kitchens': 'Transform your kitchen with our comprehensive renovation estimates. We cover everything from cabinet installation and countertops to appliances, lighting, plumbing, and electrical work. Our detailed estimates include material costs, labor, permits, and timeline projections for your dream kitchen.',
     'bathrooms': 'Upgrade your bathroom with professional renovation estimates. From small powder rooms to luxury master suites, we provide detailed cost breakdowns for fixtures, tile work, plumbing, electrical, ventilation, and all finishing touches to create your perfect bathroom space.',
+    'existing bathrooms': 'Upgrade your existing bathroom with professional renovation estimates. From small powder rooms to luxury master suites, we provide detailed cost breakdowns for fixtures, tile work, plumbing, electrical, ventilation, and all finishing touches to create your perfect bathroom space.',
     'basements': 'Maximize your home\'s potential with basement finishing estimates. We cover waterproofing, insulation, framing, drywall, flooring, electrical, plumbing, and HVAC systems to transform your basement into valuable living space.',
     'windows': 'Improve your home\'s energy efficiency and curb appeal with new windows. Our estimates cover window selection, removal of old windows, installation of energy-efficient replacements, trim work, and weatherproofing.',
     'flooring': 'Update your home with beautiful new flooring. We provide estimates for hardwood, laminate, tile, carpet, luxury vinyl, and more. Our comprehensive quotes include material costs, subfloor preparation, installation, and finishing touches.',
@@ -131,9 +174,18 @@ export const getHomePageData = async (): Promise<HomePageData> => {
 /**
  * Get the WordPress API slug for a category ID
  */
-const getCategorySlug = (categoryId: string): string => {
+const getCategorySlug = async (categoryId: string): Promise<string> => {
+  // Initialize category slugs if not already done
+  await initializeCategorySlugs();
+  
   const slug = CATEGORY_SLUGS[categoryId];
   if (!slug) {
+    // Fallback to default if not found
+    const fallbackSlug = DEFAULT_CATEGORY_SLUGS[categoryId];
+    if (fallbackSlug) {
+      console.warn(`⚠️ Using fallback slug for category ${categoryId}: ${fallbackSlug}`);
+      return fallbackSlug;
+    }
     throw new Error(`Unknown category ID: ${categoryId}`);
   }
   return slug;
@@ -143,7 +195,7 @@ const getCategorySlug = (categoryId: string): string => {
  * Fetch category data from WordPress API
  */
 export const getCategoryData = async (categoryId: string): Promise<CalculatorData> => {
-  const slug = getCategorySlug(categoryId);
+  const slug = await getCategorySlug(categoryId);
   
   try {
     console.log(`🚀 Fetching category data for ${categoryId} with slug: ${slug}`);
@@ -636,6 +688,13 @@ export const sendMarketingNotification = async (formData: any, estimateBreakdown
   }
 };
 
+/**
+ * Preload category slugs from WordPress (can be called during app initialization)
+ */
+export const preloadCategorySlugs = async (): Promise<void> => {
+  await initializeCategorySlugs();
+};
+
 // Export the main API service object for backward compatibility
 export const apiService = {
   getHomePageData,
@@ -645,5 +704,6 @@ export const apiService = {
   sendCalculatorEmail,
   createJobTreadCustomer,
   createJobTreadAccountContact,
-  sendMarketingNotification
+  sendMarketingNotification,
+  preloadCategorySlugs
 };

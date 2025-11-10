@@ -1,0 +1,213 @@
+{
+  "assistant": {
+    "name": "RPK Construction Assistant",
+    "version": "1.0.0",
+    "description": "AI assistant for RPK Construction estimate calculator and project management",
+    "created": "2025-10-29"
+  },
+  "chat_modes": {
+    "default": {
+      "name": "General Construction Assistant",
+      "description": "General purpose construction and estimation assistance",
+      "personality": "professional, knowledgeable, helpful",
+      "specialties": [
+        "construction estimation",
+        "project planning",
+        "material calculations",
+        "contractor recommendations"
+      ],
+      "response_style": "detailed but concise",
+      "max_response_length": 500
+    },
+    "estimate_calculator": {
+      "name": "Estimate Calculator Helper",
+      "description": "Specialized assistant for the estimate calculator application",
+      "personality": "precise, detail-oriented, cost-focused",
+      "specialties": [
+        "cost estimation",
+        "material pricing",
+        "labor calculations",
+        "project timelines",
+        "budget planning"
+      ],
+      "response_style": "structured with bullet points",
+      "max_response_length": 300,
+      "context_categories": [
+        "kitchens",
+        "bathrooms",
+        "existing-bathrooms",
+        "basements",
+        "windows",
+        "flooring",
+        "home-renovations",
+        "structural"
+      ]
+    },
+    "technical_support": {
+      "name": "Technical Support Assistant",
+      "description": "Helps with WordPress plugin and React app technical issues",
+      "personality": "patient, methodical, solution-oriented",
+      "specialties": [
+        "WordPress development",
+        "React applications",
+        "API troubleshooting",
+        "plugin configuration",
+        "database issues"
+      ],
+      "response_style": "step-by-step instructions",
+      "max_response_length": 800
+    },
+    "project_consultation": {
+      "name": "Project Consultation Assistant",
+      "description": "Provides high-level project advice and planning guidance",
+      "personality": "strategic, experienced, advisory",
+      "specialties": [
+        "project planning",
+        "design consultation",
+        "permit requirements",
+        "contractor selection",
+        "timeline planning",
+        "risk assessment"
+      ],
+      "response_style": "consultative with recommendations",
+      "max_response_length": 600
+    }
+  },
+  "knowledge_base": {
+    "construction_categories": {
+      "kitchens": {
+        "typical_cost_range": "$15000-50000",
+        "duration": "2-6 weeks",
+        "key_components": ["cabinets", "countertops", "appliances", "flooring", "electrical", "plumbing"]
+      },
+      "bathrooms": {
+        "typical_cost_range": "$8000-25000",
+        "duration": "1-3 weeks",
+        "key_components": ["fixtures", "tile", "vanity", "plumbing", "electrical", "ventilation"]
+      },
+      "existing-bathrooms": {
+        "typical_cost_range": "$5000-20000",
+        "duration": "1-2 weeks",
+        "key_components": ["fixture updates", "retiling", "vanity replacement", "minor plumbing"]
+      },
+      "basements": {
+        "typical_cost_range": "$10000-35000",
+        "duration": "3-8 weeks",
+        "key_components": ["waterproofing", "insulation", "framing", "drywall", "flooring", "electrical"]
+      },
+      "windows": {
+        "typical_cost_range": "$300-800 per window",
+        "duration": "1-2 days per window",
+        "key_components": ["window units", "installation", "trim", "weatherproofing"]
+      },
+      "flooring": {
+        "typical_cost_range": "$3-15 per sq ft",
+        "duration": "1-3 days per room",
+        "key_components": ["materials", "underlayment", "installation", "finishing"]
+      }
+    },
+    "common_responses": {
+      "greeting": "Hello! I'm the RPK Construction Assistant. How can I help you with your construction project today?",
+      "estimate_intro": "I'd be happy to help you with your construction estimate. Let me guide you through the process.",
+      "technical_help": "I can help you troubleshoot technical issues with the estimate calculator. What specific problem are you experiencing?",
+      "consultation_intro": "I'm here to provide expert guidance on your construction project. What would you like to discuss?"
+    }
+  },
+  "behavior_settings": {
+    "auto_suggest_categories": true,
+    "provide_cost_ranges": true,
+    "include_timeline_estimates": true,
+    "offer_follow_up_questions": true,
+    "context_awareness": true,
+    "learning_enabled": false,
+    "data_retention": {
+      "conversation_history": "30 days",
+      "user_preferences": "90 days",
+      "project_data": "1 year"
+    }
+  },
+  "integration_settings": {
+    "wordpress_api": {
+      "enabled": true,
+      "base_url": "http://localhost:8080/wp-json/estimate-calculator/v1/",
+      "endpoints": {
+        "calculator_data": "get-calculator-data",
+        "category_slugs": "calculator-category-slugs",
+        "email_template": "calculator-email-body"
+      }
+    },
+    "react_app": {
+      "enabled": true,
+      "components": [
+        "HomeScreen",
+        "CategoryDetailScreen",
+        "EstimateFormScreen",
+        "EstimateResultsScreen"
+      ]
+    },
+    "external_apis": {
+      "sendgrid": {
+        "enabled": false,
+        "api_key_required": true
+      },
+      "jobtread": {
+        "enabled": false,
+        "api_key_required": true,
+        "organization_id_required": true
+      }
+    }
+  },
+  "ui_customization": {
+    "theme": {
+      "primary_color": "#C12530",
+      "secondary_color": "#ffffff",
+      "accent_color": "#f5f5f5"
+    },
+    "chat_interface": {
+      "position": "bottom-right",
+      "width": "400px",
+      "height": "600px",
+      "collapsed_height": "60px",
+      "animation_speed": "300ms"
+    },
+    "response_formatting": {
+      "use_markdown": true,
+      "highlight_costs": true,
+      "show_category_icons": true,
+      "include_action_buttons": true
+    }
+  },
+  "security": {
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 30,
+      "requests_per_hour": 200
+    },
+    "content_filtering": {
+      "enabled": true,
+      "block_inappropriate": true,
+      "log_violations": true
+    },
+    "data_privacy": {
+      "anonymize_conversations": true,
+      "encrypt_stored_data": true,
+      "gdpr_compliant": true
+    }
+  },
+  "analytics": {
+    "track_conversations": true,
+    "track_user_satisfaction": true,
+    "track_conversion_rates": true,
+    "export_format": "json",
+    "retention_period": "1 year"
+  },
+  "fallback_options": {
+    "unknown_query": "I'm not sure about that specific question, but I can help you with construction estimates, project planning, or technical support. What would you like to know?",
+    "api_error": "I'm experiencing some technical difficulties. Please try again in a moment or contact our support team.",
+    "offline_mode": {
+      "enabled": true,
+      "cached_responses": true,
+      "sync_when_online": true
+    }
+  }
+}
