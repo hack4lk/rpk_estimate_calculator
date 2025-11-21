@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogContent,
   IconButton,
+  TextField,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -43,6 +44,15 @@ const CategoryDetailScreen: React.FC<CategoryDetailScreenProps> = ({
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [customInputValues, setCustomInputValues] = useState<{
+    [key: string]: string;
+  }>({});
+  const [customInputChoice, setCustomInputChoice] = useState<{
+    [key: string]: boolean | null;
+  }>({});
+  const [customInputShowInput, setCustomInputShowInput] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   // Use global calculator context
   const {
@@ -97,9 +107,45 @@ const CategoryDetailScreen: React.FC<CategoryDetailScreenProps> = ({
         // We're at the last question - check if all questions are answered
         const categorySelections = getCategoryQuestions(category.id.toString());
         const totalQuestions = categoryData.questions.length;
-        const answeredQuestions = Object.keys(categorySelections).length;
 
-        if (answeredQuestions === totalQuestions) {
+        // For custom input questions, check if they have made a choice (YES/NO)
+        // and if YES, check if they have entered a value
+        let allAnswered = true;
+        for (let i = 0; i < totalQuestions; i++) {
+          const questionKey = `q${i}`;
+          const question = categoryData.questions[i];
+
+          if (question.custom_input) {
+            // For custom input questions
+            const choice = customInputChoice[questionKey];
+            if (choice === true) {
+              // If YES, check if they have entered a value
+              const inputValue = customInputValues[questionKey];
+              if (!inputValue || inputValue.trim() === "") {
+                allAnswered = false;
+                break;
+              }
+            } else if (choice === false) {
+              // If NO, check if they selected an option
+              if (!(i in categorySelections)) {
+                allAnswered = false;
+                break;
+              }
+            } else {
+              // No choice made yet
+              allAnswered = false;
+              break;
+            }
+          } else {
+            // For regular questions, check if option is selected
+            if (!(i in categorySelections)) {
+              allAnswered = false;
+              break;
+            }
+          }
+        }
+
+        if (allAnswered) {
           // All questions answered, go to form
           onGoToForm(categoryData);
         }
@@ -112,6 +158,112 @@ const CategoryDetailScreen: React.FC<CategoryDetailScreenProps> = ({
       setCurrentQuestionIndex((prev) => prev - 1);
     }
   };
+
+  const handleCustomInputChange = (inputKey: string, value: string) => {
+    // Only allow numbers (including empty string for clearing)
+    if (value !== "" && (isNaN(Number(value)) || Number(value) < 0)) {
+      return; // Don't update if it's not a valid positive number
+    }
+
+    setCustomInputValues((prev) => ({
+      ...prev,
+      [inputKey]: value,
+    }));
+
+    // Calculate the final value using custom_input_value as multiplier
+    if (value && categoryData) {
+      const questionIndex = parseInt(inputKey.replace("q", ""));
+      const multiplier = parseFloat(
+        categoryData.questions[questionIndex].custom_input_value || "0"
+      );
+      const calculatedValue = parseFloat(value) * multiplier;
+
+      // Store calculated value in calculator context using a custom format
+      // We'll store it as a negative value to distinguish from regular option indices
+      setGlobalSelectedOption(
+        category.id.toString(),
+        questionIndex,
+        -Math.abs(calculatedValue) // Store as negative to distinguish from option indices
+      );
+    }
+  };
+
+  // const getCustomInputValues = () => {
+  //   return customInputValues;
+  // };
+
+  const handleCustomInputYesNo = (questionIndex: number, choice: boolean) => {
+    const questionKey = `q${questionIndex}`;
+    setCustomInputChoice((prev) => ({
+      ...prev,
+      [questionKey]: choice,
+    }));
+    setCustomInputShowInput((prev) => ({
+      ...prev,
+      [questionKey]: choice,
+    }));
+
+    if (choice === true) {
+      // YES selected - use custom input value (will be calculated when input changes)
+      // For now, set a special marker value to indicate custom input mode
+      setGlobalSelectedOption(
+        category.id.toString(),
+        questionIndex,
+        -1 // Special value to indicate custom input
+      );
+    } else if (choice === false) {
+      // NO selected - clear any custom input selection and prepare for regular options
+      removeSelectedOption(category.id.toString(), questionIndex);
+      // Clear custom input value
+      setCustomInputValues((prev) => ({
+        ...prev,
+        [questionKey]: "",
+      }));
+    }
+  };
+
+  const getQuestionKey = (questionIndex: number) => `q${questionIndex}`;
+
+  const isCurrentQuestionAnswered = () => {
+    if (!categoryData) return false;
+
+    const question = categoryData.questions[currentQuestionIndex];
+    const questionKey = getQuestionKey(currentQuestionIndex);
+
+    if (question.custom_input) {
+      const choice = customInputChoice[questionKey];
+      if (choice === true) {
+        // If YES, check if they have entered a value
+        const inputValue = customInputValues[questionKey];
+        return inputValue && inputValue.trim() !== "";
+      } else if (choice === false) {
+        // If NO, check if they selected an option
+        return (
+          getSelectedOption(category.id.toString(), currentQuestionIndex) !==
+          undefined
+        );
+      } else {
+        // No choice made yet
+        return false;
+      }
+    } else {
+      // For regular questions, check if option is selected
+      return (
+        getSelectedOption(category.id.toString(), currentQuestionIndex) !==
+        undefined
+      );
+    }
+  };
+
+  // Old renderCustomInput function - commented out as we're using new logic
+  // const renderCustomInput = (
+  //   question: any,
+  //   option: any,
+  //   questionIndex: number,
+  //   optionIndex: number
+  // ) => {
+  //   // ... (implementation commented out)
+  // };
   const {
     data: categoryData,
     isLoading,
@@ -235,196 +387,409 @@ const CategoryDetailScreen: React.FC<CategoryDetailScreenProps> = ({
         <>
           <Card sx={{ mb: 4 }}>
             <CardContent sx={{ p: 4 }}>
-              <Typography
-                variant="h4"
-                gutterBottom
-                sx={{ fontWeight: "semibold" }}
-              >
-                {categoryData.questions[currentQuestionIndex].question_text}{" "}
-                <em>(click to select)</em>
-              </Typography>
-              {categoryData.questions[currentQuestionIndex]
-                .question_help_text && (
-                <Typography
-                  variant="body1"
-                  color="text.secondary"
-                  sx={{ mb: 3 }}
-                >
-                  {
-                    categoryData.questions[currentQuestionIndex]
-                      .question_help_text
-                  }
-                </Typography>
-              )}
-              <Divider sx={{ mb: 3 }} />
-
-              {/* Question Pagination */}
-              <Box
-                display="flex"
-                justifyContent="flex-start"
-                gap={1}
-                sx={{ mb: 4 }}
-              >
-                {categoryData.questions.map((_, questionIndex) => (
-                  <Box
-                    key={questionIndex}
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: 1,
-                      fontSize: "0.875rem",
-                      fontWeight: "medium",
-                      bgcolor:
-                        questionIndex === currentQuestionIndex
-                          ? "#C12530"
-                          : "transparent",
-                      border:
-                        questionIndex === currentQuestionIndex
-                          ? "none"
-                          : "1px solid #C12530",
-                      color:
-                        questionIndex === currentQuestionIndex
-                          ? "white"
-                          : "#C12530",
-                    }}
-                  >
-                    {questionIndex + 1}
-                  </Box>
-                ))}
-              </Box>
-
-              {/* Options Grid */}
-              <Box
-                display="grid"
-                gridTemplateColumns={{
-                  xs: "1fr",
-                  sm: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
-                }}
-                gap={3}
-                justifyItems="center"
-              >
-                {categoryData.questions[currentQuestionIndex].option.map(
-                  (option, optionIndex) => {
-                    const isSelected =
-                      getSelectedOption(
-                        category.id.toString(),
-                        currentQuestionIndex
-                      ) === optionIndex;
-
-                    return (
-                      <Card
-                        key={optionIndex}
-                        onClick={() =>
-                          handleOptionClick(
-                            option,
-                            currentQuestionIndex,
-                            optionIndex
-                          )
-                        }
-                        sx={{
-                          height: "100%",
-                          maxWidth: 350,
-                          width: "100%",
-                          display: "flex",
-                          flexDirection: "column",
-                          cursor: "pointer",
-                          bgcolor: isSelected ? "#C12530" : "black",
-                          color: "white",
-                          position: "relative",
-                          transition:
-                            "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out",
-                          "&:hover": {
-                            transform: "translateY(-2px)",
-                            boxShadow: 3,
-                          },
-                        }}
+              {/* Check if current question has custom_input = true */}
+              {categoryData.questions[currentQuestionIndex].custom_input ? (
+                <>
+                  {/* Show custom input fields only if NO is not selected */}
+                  {customInputChoice[getQuestionKey(currentQuestionIndex)] !==
+                    false && (
+                    <>
+                      {/* Custom Input Mode - Show only headline, description, and YES/NO buttons */}
+                      <Typography
+                        variant="h4"
+                        gutterBottom
+                        sx={{ fontWeight: "semibold", mb: 3 }}
                       >
-                        {/* Checkmark overlay */}
-                        {isSelected && (
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              top: "50%",
-                              left: "50%",
-                              transform: "translate(-50%, -50%)",
-                              zIndex: 2,
-                              bgcolor: "white",
-                              borderRadius: "50%",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: 64,
-                              height: 64,
-                            }}
-                          >
-                            <CheckCircleIcon
-                              sx={{ color: "#C12530", fontSize: 48 }}
-                            />
-                          </Box>
-                        )}
+                        {
+                          categoryData.questions[currentQuestionIndex]
+                            .custom_input_headline
+                        }
+                      </Typography>
 
-                        <CardMedia
-                          component="img"
+                      <Typography
+                        variant="body1"
+                        color="text.secondary"
+                        sx={{
+                          mb: 4,
+                          "& p": { margin: "0 0 1rem 0" },
+                          "& div": { margin: "0 0 1rem 0" },
+                          "& ul": {
+                            margin: "0 0 1rem 0",
+                            paddingLeft: "1.5rem",
+                          },
+                          "& ol": {
+                            margin: "0 0 1rem 0",
+                            paddingLeft: "1.5rem",
+                          },
+                          "& strong": { fontWeight: "bold" },
+                          "& em": { fontStyle: "italic" },
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html:
+                            categoryData.questions[currentQuestionIndex]
+                              .custom_input_description || "",
+                        }}
+                      />
+
+                      {/* YES/NO Buttons */}
+                      <Box sx={{ display: "flex", gap: 2, mb: 4 }}>
+                        <Button
+                          variant="contained"
+                          onClick={() =>
+                            handleCustomInputYesNo(currentQuestionIndex, true)
+                          }
                           sx={{
-                            width: "100%",
-                            aspectRatio: "1",
-                            objectFit: "cover",
-                            padding: "5px",
-                          }}
-                          image={option.featured_image.url}
-                          alt={option.short_description}
-                        />
-                        <CardContent
-                          sx={{
-                            flexGrow: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            bgcolor: "transparent",
+                            bgcolor:
+                              customInputChoice[
+                                getQuestionKey(currentQuestionIndex)
+                              ] === true
+                                ? "#0F5FB4"
+                                : "transparent",
+                            border:
+                              customInputChoice[
+                                getQuestionKey(currentQuestionIndex)
+                              ] === true
+                                ? "none"
+                                : "2px solid #0F5FB4",
+                            color:
+                              customInputChoice[
+                                getQuestionKey(currentQuestionIndex)
+                              ] === true
+                                ? "white"
+                                : "#0F5FB4",
+                            "&:hover": {
+                              bgcolor: "#0F5FB4",
+                              color: "white",
+                            },
                           }}
                         >
+                          YES
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() =>
+                            handleCustomInputYesNo(currentQuestionIndex, false)
+                          }
+                          sx={{
+                            bgcolor:
+                              customInputChoice[
+                                getQuestionKey(currentQuestionIndex)
+                              ] === false
+                                ? "#C12530"
+                                : "transparent",
+                            border:
+                              customInputChoice[
+                                getQuestionKey(currentQuestionIndex)
+                              ] === false
+                                ? "none"
+                                : "2px solid #C12530",
+                            color:
+                              customInputChoice[
+                                getQuestionKey(currentQuestionIndex)
+                              ] === false
+                                ? "white"
+                                : "#C12530",
+                            "&:hover": {
+                              bgcolor: "#C12530",
+                              color: "white",
+                            },
+                          }}
+                        >
+                          NO
+                        </Button>
+                      </Box>
+
+                      {/* Show input field if YES was selected */}
+                      {customInputShowInput[
+                        getQuestionKey(currentQuestionIndex)
+                      ] && (
+                        <Box sx={{ mb: 4 }}>
                           <Typography
-                            gutterBottom
                             variant="h6"
-                            component="h3"
-                            sx={{
-                              fontWeight: "semibold",
-                              mb: 2,
-                              flexGrow: 1,
-                              color: "white",
-                              textAlign: "center",
-                            }}
+                            sx={{ mb: 2, fontWeight: "semibold" }}
                           >
-                            {option.short_description}
+                            Number of{" "}
+                            {
+                              categoryData.questions[currentQuestionIndex]
+                                .custom_input_type
+                            }
                           </Typography>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent card click when button is clicked
-                              handleLearnMore(option);
+                          <TextField
+                            fullWidth
+                            type="number"
+                            inputProps={{
+                              min: 0,
+                              step: 1,
+                              pattern: "[0-9]*",
                             }}
+                            value={
+                              customInputValues[
+                                getQuestionKey(currentQuestionIndex)
+                              ] || ""
+                            }
+                            onChange={(e) =>
+                              handleCustomInputChange(
+                                getQuestionKey(currentQuestionIndex),
+                                e.target.value
+                              )
+                            }
+                            onKeyPress={(e) => {
+                              // Prevent non-numeric characters from being entered
+                              if (
+                                !/[0-9]/.test(e.key) &&
+                                e.key !== "Backspace" &&
+                                e.key !== "Delete" &&
+                                e.key !== "ArrowLeft" &&
+                                e.key !== "ArrowRight" &&
+                                e.key !== "Tab"
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
+                            placeholder="0"
+                            variant="outlined"
+                            sx={{ maxWidth: 300 }}
+                          />
+                        </Box>
+                      )}
+                    </>
+                  )}
+
+                  {/* Show question options if NO was selected */}
+                  {customInputChoice[getQuestionKey(currentQuestionIndex)] ===
+                    false && (
+                    <>
+                      <Typography
+                        variant="h4"
+                        gutterBottom
+                        sx={{ fontWeight: "semibold" }}
+                      >
+                        {
+                          categoryData.questions[currentQuestionIndex]
+                            .question_text
+                        }{" "}
+                        <em>(click to select)</em>
+                      </Typography>
+                      {categoryData.questions[currentQuestionIndex]
+                        .question_help_text && (
+                        <Typography
+                          variant="body1"
+                          color="text.secondary"
+                          sx={{ mb: 3 }}
+                        >
+                          {
+                            categoryData.questions[currentQuestionIndex]
+                              .question_help_text
+                          }
+                        </Typography>
+                      )}
+                      <Divider sx={{ mb: 3 }} />
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Regular Mode - Show question text and help text */}
+                  <Typography
+                    variant="h4"
+                    gutterBottom
+                    sx={{ fontWeight: "semibold" }}
+                  >
+                    {categoryData.questions[currentQuestionIndex].question_text}{" "}
+                    <em>(click to select)</em>
+                  </Typography>
+                  {categoryData.questions[currentQuestionIndex]
+                    .question_help_text && (
+                    <Typography
+                      variant="body1"
+                      color="text.secondary"
+                      sx={{ mb: 3 }}
+                    >
+                      {
+                        categoryData.questions[currentQuestionIndex]
+                          .question_help_text
+                      }
+                    </Typography>
+                  )}
+                  <Divider sx={{ mb: 3 }} />
+                </>
+              )}
+
+              {/* Show Question Pagination and Options Grid only when appropriate */}
+              {(!categoryData.questions[currentQuestionIndex].custom_input ||
+                customInputChoice[getQuestionKey(currentQuestionIndex)] ===
+                  false) && (
+                <>
+                  {/* Question Pagination */}
+                  <Box
+                    display="flex"
+                    justifyContent="flex-start"
+                    gap={1}
+                    sx={{ mb: 4 }}
+                  >
+                    {categoryData.questions.map((_, questionIndex) => (
+                      <Box
+                        key={questionIndex}
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 1,
+                          fontSize: "0.875rem",
+                          fontWeight: "medium",
+                          bgcolor:
+                            questionIndex === currentQuestionIndex
+                              ? "#C12530"
+                              : "transparent",
+                          border:
+                            questionIndex === currentQuestionIndex
+                              ? "none"
+                              : "1px solid #C12530",
+                          color:
+                            questionIndex === currentQuestionIndex
+                              ? "white"
+                              : "#C12530",
+                        }}
+                      >
+                        {questionIndex + 1}
+                      </Box>
+                    ))}
+                  </Box>
+
+                  {/* Options Grid */}
+                  <Box
+                    display="grid"
+                    gridTemplateColumns={{
+                      xs: "1fr",
+                      sm: "repeat(2, 1fr)",
+                      md: "repeat(3, 1fr)",
+                    }}
+                    gap={3}
+                    justifyItems="center"
+                  >
+                    {categoryData.questions[currentQuestionIndex].option.map(
+                      (option, optionIndex) => {
+                        const isSelected =
+                          getSelectedOption(
+                            category.id.toString(),
+                            currentQuestionIndex
+                          ) === optionIndex;
+
+                        return (
+                          <Card
+                            key={optionIndex}
+                            onClick={() =>
+                              handleOptionClick(
+                                option,
+                                currentQuestionIndex,
+                                optionIndex
+                              )
+                            }
                             sx={{
-                              mt: "auto",
-                              borderColor: "white",
+                              height: "100%",
+                              maxWidth: 350,
+                              width: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                              cursor: "pointer",
+                              bgcolor: isSelected ? "#C12530" : "black",
                               color: "white",
+                              position: "relative",
+                              transition:
+                                "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out",
                               "&:hover": {
-                                borderColor: "white",
-                                bgcolor: "rgba(255, 255, 255, 0.1)",
+                                transform: "translateY(-2px)",
+                                boxShadow: 3,
                               },
                             }}
                           >
-                            Learn More
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    );
-                  }
-                )}
-              </Box>
+                            {/* Checkmark overlay */}
+                            {isSelected && (
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: "50%",
+                                  left: "50%",
+                                  transform: "translate(-50%, -50%)",
+                                  zIndex: 2,
+                                  bgcolor: "white",
+                                  borderRadius: "50%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  width: 64,
+                                  height: 64,
+                                }}
+                              >
+                                <CheckCircleIcon
+                                  sx={{ color: "#C12530", fontSize: 48 }}
+                                />
+                              </Box>
+                            )}
+
+                            <CardMedia
+                              component="img"
+                              sx={{
+                                width: "100%",
+                                aspectRatio: "1",
+                                objectFit: "cover",
+                                padding: "5px",
+                              }}
+                              image={option.featured_image.url}
+                              alt={option.short_description}
+                            />
+                            <CardContent
+                              sx={{
+                                flexGrow: 1,
+                                display: "flex",
+                                flexDirection: "column",
+                                bgcolor: "transparent",
+                              }}
+                            >
+                              <Typography
+                                gutterBottom
+                                variant="h6"
+                                component="h3"
+                                sx={{
+                                  fontWeight: "semibold",
+                                  mb: 2,
+                                  flexGrow: 1,
+                                  color: "white",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {option.short_description}
+                              </Typography>
+
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent card click when button is clicked
+                                  handleLearnMore(option);
+                                }}
+                                sx={{
+                                  mt: "auto",
+                                  borderColor: "white",
+                                  color: "white",
+                                  "&:hover": {
+                                    borderColor: "white",
+                                    bgcolor: "rgba(255, 255, 255, 0.1)",
+                                  },
+                                }}
+                              >
+                                Learn More
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        );
+                      }
+                    )}
+                  </Box>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -449,12 +814,7 @@ const CategoryDetailScreen: React.FC<CategoryDetailScreenProps> = ({
               variant="contained"
               endIcon={<ArrowForwardIcon />}
               onClick={handleNextQuestion}
-              disabled={
-                getSelectedOption(
-                  category.id.toString(),
-                  currentQuestionIndex
-                ) === undefined
-              }
+              disabled={!isCurrentQuestionAnswered()}
               sx={{
                 minWidth: 120,
                 bgcolor: "#C12530",

@@ -88,13 +88,15 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
 
     let html = `
       <div style="margin: 20px 0; font-family: Arial, sans-serif;">
-        <h3 style="color: #333; margin-bottom: 15px;">Estimate Breakdown</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <h3 style="color: #333; margin-bottom: 15px; font-size: 24px; border-bottom: 2px solid #C12530; padding-bottom: 10px;">
+          Estimate Breakdown
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <thead>
-            <tr style="background-color: #f5f5f5;">
-              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Item</th>
-              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Description</th>
-              <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Cost Range</th>
+            <tr style="background-color: #f8f9fa; border-bottom: 2px solid #C12530;">
+              <th style="padding: 15px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #333;">Image</th>
+              <th style="padding: 15px; text-align: left; border: 1px solid #ddd; font-weight: bold; color: #333;">Item Description</th>
+              <th style="padding: 15px; text-align: right; border: 1px solid #ddd; font-weight: bold; color: #333;">Cost</th>
             </tr>
           </thead>
           <tbody>
@@ -104,34 +106,68 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
     Object.entries(selectedOptionsForCategory).forEach(
       ([questionIndex, optionIndex]) => {
         const question = categoryData.questions[parseInt(questionIndex)];
-        const option = question?.option[optionIndex];
 
-        if (option) {
-          const minCost = parseFloat(option.minimum_cost) || 0;
-          const maxCost = parseFloat(option.maximum_cost) || 0;
-          const costRange =
-            minCost === maxCost
-              ? `$${minCost.toLocaleString()}`
-              : `$${minCost.toLocaleString()} - $${maxCost.toLocaleString()}`;
+        if (optionIndex < 0) {
+          // Custom input value
+          const customValue = Math.abs(optionIndex);
+
+          // Calculate the original number of items by dividing by the multiplier
+          const multiplier = parseFloat(question?.custom_input_value || "1");
+          const numberOfItems =
+            multiplier > 0 ? Math.round(customValue / multiplier) : 0;
 
           html += `
           <tr>
-            <td style="padding: 10px; border: 1px solid #ddd;">
-              ${
-                option.featured_image?.url
-                  ? `<img src="${option.featured_image.url}" alt="${
-                      option.featured_image.alt || "Option image"
-                    }" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">`
-                  : ""
-              }
+            <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #999; font-style: italic;">
+              No Image
             </td>
             <td style="padding: 10px; border: 1px solid #ddd;">
-              <strong>${option.short_description}</strong><br>
-              ${option.long_description || ""}
+              <strong>${numberOfItems} ${
+            question?.custom_input_type || "items"
+          }</strong>
             </td>
-            <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${costRange}</td>
+            <td style="padding: 10px; text-align: right; border: 1px solid #ddd; color: #C12530; font-weight: bold;">
+              $${customValue.toLocaleString()}
+            </td>
           </tr>
         `;
+        } else {
+          // Regular option
+          const option = question?.option[optionIndex];
+
+          if (option) {
+            const minCost = parseFloat(option.minimum_cost) || 0;
+            const maxCost = parseFloat(option.maximum_cost) || 0;
+            const costRange =
+              minCost === maxCost
+                ? `$${minCost.toLocaleString()}`
+                : `$${minCost.toLocaleString()} - $${maxCost.toLocaleString()}`;
+
+            html += `
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">
+                ${
+                  option.featured_image?.url
+                    ? `<img src="${option.featured_image.url}" alt="${
+                        option.featured_image.alt || "Option image"
+                      }" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; vertical-align: middle;">`
+                    : `<span style="color: #999; font-style: italic;">No Image</span>`
+                }
+              </td>
+              <td style="padding: 10px; border: 1px solid #ddd;">
+                <strong>${option.short_description}</strong>
+                ${
+                  option.long_description
+                    ? `<br><span style="color: #666; font-size: 14px;">${option.long_description}</span>`
+                    : ""
+                }
+              </td>
+              <td style="padding: 10px; text-align: right; border: 1px solid #ddd; font-weight: bold;">
+                ${costRange}
+              </td>
+            </tr>
+          `;
+          }
         }
       }
     );
@@ -142,11 +178,19 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
 
     Object.entries(selectedOptionsForCategory).forEach(
       ([questionIndex, optionIndex]) => {
-        const question = categoryData.questions[parseInt(questionIndex)];
-        const option = question?.option[optionIndex];
-        if (option) {
-          minTotal += parseInt(option.minimum_cost);
-          maxTotal += parseInt(option.maximum_cost);
+        if (optionIndex < 0) {
+          // Custom input value
+          const customValue = Math.abs(optionIndex);
+          minTotal += customValue;
+          maxTotal += customValue;
+        } else {
+          // Regular option
+          const question = categoryData.questions[parseInt(questionIndex)];
+          const option = question?.option[optionIndex];
+          if (option) {
+            minTotal += parseInt(option.minimum_cost);
+            maxTotal += parseInt(option.maximum_cost);
+          }
         }
       }
     );
@@ -159,11 +203,11 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
     html += `
           </tbody>
           <tfoot>
-            <tr style="background-color: #f9f9f9; font-weight: bold;">
-              <td colspan="2" style="padding: 15px; border: 1px solid #ddd; text-align: right; font-size: 16px;">
-                <strong>Estimate Total:</strong>
+            <tr style="background-color: #f8f9fa; border-top: 2px solid #C12530;">
+              <td colspan="2" style="padding: 20px; border: 1px solid #ddd; text-align: right; font-size: 18px; font-weight: bold; color: #333;">
+                <strong>ESTIMATE TOTAL:</strong>
               </td>
-              <td style="padding: 15px; text-align: right; border: 1px solid #ddd; font-size: 16px; color: #e74c3c;">
+              <td style="padding: 20px; text-align: right; border: 1px solid #ddd; font-size: 20px; color: #C12530; font-weight: bold;">
                 <strong>${totalRange}</strong>
               </td>
             </tr>
@@ -171,7 +215,7 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
         </table>
       </div>
     `;
-
+    console.log(html);
     return html;
   }, [categoryData, selectedOptionsForCategory]);
 
@@ -499,8 +543,66 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
                   ([questionIndex, optionIndex]) => {
                     const question =
                       categoryData.questions[parseInt(questionIndex)];
-                    const option = question?.option[optionIndex];
 
+                    // Check if this is a custom input (negative optionIndex)
+                    if (optionIndex < 0) {
+                      // This is a custom input value
+                      const customValue = Math.abs(optionIndex);
+
+                      // Calculate the original number of items by dividing by the multiplier
+                      const multiplier = parseFloat(
+                        question?.custom_input_value || "1"
+                      );
+                      const numberOfItems =
+                        multiplier > 0
+                          ? Math.round(customValue / multiplier)
+                          : 0;
+
+                      return (
+                        <Box
+                          key={`${questionIndex}-custom`}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            p: 2,
+                            borderBottom: "1px solid",
+                            borderColor: "grey.200",
+                            "&:last-child": {
+                              borderBottom: "none",
+                            },
+                          }}
+                        >
+                          {/* Left side: Custom input info without thumbnail */}
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 2,
+                            }}
+                          >
+                            <Typography
+                              variant="body1"
+                              sx={{ fontWeight: "medium" }}
+                            >
+                              {numberOfItems}{" "}
+                              {question?.custom_input_type || "items"}
+                            </Typography>
+                          </Box>
+
+                          {/* Right side: Custom calculated cost */}
+                          <Typography
+                            variant="body1"
+                            sx={{ fontWeight: "medium", color: "#C12530" }}
+                          >
+                            ${customValue.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      );
+                    }
+
+                    // Regular option handling
+                    const option = question?.option[optionIndex];
                     if (!option) return null;
 
                     return (
@@ -581,17 +683,27 @@ const EstimateResultsScreen: React.FC<EstimateResultsScreenProps> = ({
 
                       Object.entries(selectedOptionsForCategory).forEach(
                         ([questionIndex, optionIndex]) => {
-                          const question =
-                            categoryData.questions[parseInt(questionIndex)];
-                          const option = question?.option[optionIndex];
-                          if (option) {
-                            minTotal += parseInt(option.minimum_cost);
-                            maxTotal += parseInt(option.maximum_cost);
+                          if (optionIndex < 0) {
+                            // Custom input value
+                            const customValue = Math.abs(optionIndex);
+                            minTotal += customValue;
+                            maxTotal += customValue;
+                          } else {
+                            // Regular option
+                            const question =
+                              categoryData.questions[parseInt(questionIndex)];
+                            const option = question?.option[optionIndex];
+                            if (option) {
+                              minTotal += parseInt(option.minimum_cost);
+                              maxTotal += parseInt(option.maximum_cost);
+                            }
                           }
                         }
                       );
 
-                      return `${minTotal.toLocaleString()} - $${maxTotal.toLocaleString()}`;
+                      return minTotal === maxTotal
+                        ? `${minTotal.toLocaleString()}`
+                        : `${minTotal.toLocaleString()} - $${maxTotal.toLocaleString()}`;
                     })()}
                   </Typography>
                 </Box>

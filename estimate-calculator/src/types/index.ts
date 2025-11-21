@@ -33,6 +33,11 @@ export interface CategoryOption {
   minimum_cost: string;
   maximum_cost: string;
   featured_image: FeaturedImage;
+  custom_input?: boolean;
+  custom_input_headline?: string;
+  custom_input_description?: string;
+  custom_input_type?: string;
+  custom_input_value?: string;
 }
 
 export interface FormFields {
@@ -45,6 +50,11 @@ export interface Question {
   question_text: string;
   question_help_text: string;
   option: CategoryOption[];
+  custom_input?: boolean;
+  custom_input_headline?: string;
+  custom_input_description?: string;
+  custom_input_type?: string;
+  custom_input_value?: string;
 }
 
 export interface CalculatorData {

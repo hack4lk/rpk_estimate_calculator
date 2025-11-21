@@ -305,6 +305,27 @@ class EstimateCalculator {
                 ),
             ),
         ));
+
+        // Get all calculator categories (posts) endpoint
+        register_rest_route('estimate-calculator/v1', '/get-calculator-categories', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_calculator_categories'),
+            'permission_callback' => '__return_true',
+        ));
+
+        // Test endpoint to verify API is working
+        register_rest_route('estimate-calculator/v1', '/test', array(
+            'methods' => 'GET',
+            'callback' => function() {
+                return array(
+                    'success' => true,
+                    'message' => 'API is working',
+                    'timestamp' => current_time('timestamp'),
+                    'version' => ESTIMATE_CALCULATOR_VERSION
+                );
+            },
+            'permission_callback' => '__return_true',
+        ));
     }
     
     /**
@@ -1079,6 +1100,105 @@ class EstimateCalculator {
         return isset($options['default_slug']) && !empty($options['default_slug']) 
             ? $options['default_slug'] 
             : 'calculator-default';
+    }
+
+    /**
+     * Get all calculator categories (posts) excluding specific slugs
+     */
+    public function get_calculator_categories(WP_REST_Request $request) {
+        // Log that the endpoint was called
+        error_log('EstimateCalculator: get_calculator_categories endpoint called');
+        
+        // Excluded slugs - these are system posts, not categories
+        $excluded_slugs = array('calculator-home', 'calculator-results', 'calculator-email');
+        
+        // Get all published calculator posts
+        $args = array(
+            'post_type' => 'calculator',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'orderby' => 'date',
+            'order' => 'ASC'
+        );
+        
+        $posts = get_posts($args);
+        error_log('EstimateCalculator: Found ' . count($posts) . ' calculator posts');
+        
+        if (empty($posts)) {
+            return array(
+                'success' => true,
+                'data' => array(
+                    'categories' => array(),
+                    'total_count' => 0,
+                ),
+                'timestamp' => current_time('timestamp'),
+            );
+        }
+        
+        $categories = array();
+        
+        foreach ($posts as $post) {
+            // Skip excluded system posts
+            if (in_array($post->post_name, $excluded_slugs)) {
+                continue;
+            }
+            
+            // Get featured image
+            $featured_image_id = get_post_thumbnail_id($post->ID);
+            $featured_image_url = '';
+            $featured_image_alt = '';
+            
+            if ($featured_image_id) {
+                $featured_image_url = wp_get_attachment_image_url($featured_image_id, 'large');
+                $featured_image_alt = get_post_meta($featured_image_id, '_wp_attachment_image_alt', true);
+            }
+            
+            // Get excerpt or generate from content
+            $description = '';
+            if (!empty($post->post_excerpt)) {
+                $description = $post->post_excerpt;
+            } elseif (!empty($post->post_content)) {
+                $description = wp_trim_words(strip_tags($post->post_content), 25, '...');
+            }
+            
+            // Get ACF fields if available
+            $subtitle = '';
+            $custom_description = '';
+            if (function_exists('get_field')) {
+                $subtitle = get_field('subtitle', $post->ID);
+                $custom_description = get_field('description', $post->ID);
+                
+                // Use custom description if available
+                if (!empty($custom_description)) {
+                    $description = $custom_description;
+                }
+            }
+            
+            $categories[] = array(
+                'id' => $post->ID,
+                'slug' => $post->post_name,
+                'title' => $post->post_title,
+                'subtitle' => $subtitle ? $subtitle : '',
+                'description' => $description,
+                'featured_image' => array(
+                    'url' => $featured_image_url,
+                    'alt' => $featured_image_alt ? $featured_image_alt : $post->post_title,
+                ),
+                'permalink' => get_permalink($post->ID),
+                'date_created' => $post->post_date,
+                'date_modified' => $post->post_modified,
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'data' => array(
+                'categories' => $categories,
+                'total_count' => count($categories),
+                'excluded_slugs' => $excluded_slugs,
+            ),
+            'timestamp' => current_time('timestamp'),
+        );
     }
     
     /**
