@@ -64,42 +64,7 @@ const initializeCategorySlugs = async (): Promise<void> => {
   }
 };
 
-/**
- * Transform WordPress API response to the format expected by components
- */
-const transformWordPressResponse = (wpResponse: WordPressApiResponse): HomePageData => {
-  const calculatorData = wpResponse.data;
-  
-  // Get the first question which contains the category options
-  const homeQuestion = calculatorData.questions[0];
-  if (!homeQuestion || !homeQuestion.option) {
-    throw new Error("Invalid API response: No categories found");
-  }
-
-  // Transform WordPress categories to our Category interface
-  const categories: Category[] = homeQuestion.option.map((option) => ({
-    id: createCategoryId(option.short_description),
-    title: option.short_description,
-    description: option.long_description || `Professional ${option.short_description.toLowerCase()} estimates`,
-    image: option.featured_image.url,
-    detailContent: generateDetailContent(option.short_description, option.long_description)
-  }));
-
-  return {
-    headline: homeQuestion.question_text || `${calculatorData.calculator_title} - Professional Estimate Calculator`,
-    helpText: homeQuestion.question_help_text || "Select a category below to get started with your construction estimate",
-    categories
-  };
-};
-
-/**
- * Create a URL-friendly category ID from the title
- */
-const createCategoryId = (title: string): string => {
-  return title.toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-};
+// Removed transformWordPressResponse and createCategoryId - no longer needed with dynamic categories
 
 /**
  * Generate detailed content for categories
@@ -126,30 +91,58 @@ const generateDetailContent = (title: string, longDescription: string): string =
 };
 
 /**
- * Fetch homepage data from WordPress API
+ * Fetch homepage data from WordPress API - now gets categories dynamically
  */
 export const getHomePageData = async (): Promise<HomePageData> => {
-  const slug = "calculator-home";
-
   try {
-    console.log(`🚀 Fetching homepage data with slug: ${slug}`);
-    console.log(`🌐 API URL: ${API_CONFIG.baseUrl}?slug=${slug}`);
+    console.log('🚀 Fetching dynamic categories from WordPress API');
     
-    const response: AxiosResponse<WordPressApiResponse> = await axiosInstance.get('', {
-      params: { slug }
+    // First, get the home page content
+    const homeResponse: AxiosResponse<WordPressApiResponse> = await axiosInstance.get('', {
+      params: { slug: "calculator-home" }
     });
     
-    console.log(`✅ Raw API Response:`, response.data);
-    const result = response.data;
+    // Then, get all calculator categories
+    // Create a specific axios instance for the categories endpoint
+    const baseApiUrl = API_CONFIG.baseUrl.replace('/get-calculator-data', '');
+    const categoriesResponse: AxiosResponse<any> = await axios.get(`${baseApiUrl}/get-calculator-categories`, {
+      timeout: API_CONFIG.timeout,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+    });
     
-    if (!result.success) {
-      throw new Error("Failed to fetch homepage data from WordPress API");
+    console.log('✅ Home page response:', homeResponse.data);
+    console.log('✅ Categories response:', categoriesResponse.data);
+    
+    if (!homeResponse.data.success || !categoriesResponse.data.success) {
+      throw new Error("Failed to fetch homepage data or categories from WordPress API");
     }
     
-    console.log("Successfully fetched homepage data from WordPress API");
+    // Get headline and help text from the home page
+    const homeData = homeResponse.data.data;
+    const homeQuestion = homeData.questions && homeData.questions[0];
     
-    // Transform WordPress API response to expected format
-    return transformWordPressResponse(result);
+    // Transform categories from the new endpoint
+    const categoriesData = categoriesResponse.data.data;
+    const categories: Category[] = categoriesData.categories.map((post: any) => ({
+      id: post.slug, // Use slug as ID for URL compatibility
+      title: post.title,
+      description: post.description || `Professional ${post.title.toLowerCase()} estimates`,
+      image: post.featured_image.url || '/placeholder-image.jpg',
+      detailContent: post.description || generateDetailContent(post.title, post.description)
+    }));
+
+    const homePageData: HomePageData = {
+      headline: homeQuestion?.question_text || `${homeData.calculator_title || 'Professional'} Estimate Calculator`,
+      helpText: homeQuestion?.question_help_text || "Select a category below to get started with your construction estimate",
+      categories
+    };
+    
+    console.log("Successfully fetched dynamic homepage data from WordPress API");
+    
+    return homePageData;
   } catch (error) {
     console.error("Error fetching homepage data:", error);
     
@@ -171,34 +164,17 @@ export const getHomePageData = async (): Promise<HomePageData> => {
   }
 };
 
-/**
- * Get the WordPress API slug for a category ID
- */
-const getCategorySlug = async (categoryId: string): Promise<string> => {
-  // Initialize category slugs if not already done
-  await initializeCategorySlugs();
-  
-  const slug = CATEGORY_SLUGS[categoryId];
-  if (!slug) {
-    // Fallback to default if not found
-    const fallbackSlug = DEFAULT_CATEGORY_SLUGS[categoryId];
-    if (fallbackSlug) {
-      console.warn(`⚠️ Using fallback slug for category ${categoryId}: ${fallbackSlug}`);
-      return fallbackSlug;
-    }
-    throw new Error(`Unknown category ID: ${categoryId}`);
-  }
-  return slug;
-};
+// Removed getCategorySlug - no longer needed since category IDs are now slugs directly
 
 /**
- * Fetch category data from WordPress API
+ * Fetch category data from WordPress API - now uses slug directly
  */
 export const getCategoryData = async (categoryId: string): Promise<CalculatorData> => {
-  const slug = await getCategorySlug(categoryId);
+  // CategoryId is now the slug directly, no need for mapping
+  const slug = categoryId;
   
   try {
-    console.log(`🚀 Fetching category data for ${categoryId} with slug: ${slug}`);
+    console.log(`🚀 Fetching category data for slug: ${slug}`);
     
     const response: AxiosResponse<WordPressApiResponse> = await axiosInstance.get('', {
       params: { slug }
@@ -207,10 +183,10 @@ export const getCategoryData = async (categoryId: string): Promise<CalculatorDat
     const result = response.data;
     
     if (!result.success) {
-      throw new Error(`Failed to fetch category data for ${categoryId}`);
+      throw new Error(`Failed to fetch category data for ${slug}`);
     }
     
-    console.log(`✅ Successfully fetched category data for: ${categoryId}`);
+    console.log(`✅ Successfully fetched category data for: ${slug}`);
     return result.data;
   } catch (error) {
     console.error(`Error fetching category data for ${categoryId}:`, error);
